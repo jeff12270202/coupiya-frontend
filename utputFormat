@@ -1,0 +1,22 @@
+HTTP/1.1 400 Bad Request
+Date: Mon, 06 Apr 2026 10:43:59 GMT
+Content-Type: application/json
+Content-Length: 115
+Connection: keep-alive
+Server: cloudflare
+cross-origin-opener-policy: same-origin
+referrer-policy: same-origin
+x-content-type-options: nosniff
+access-control-allow-credentials: true
+traceparent: 00-d9a0082e71c6624697bd841d8c9218ca-fbd06f5738277b7b-01
+access-control-allow-origin: https://coupiya.com
+access-control-allow-methods: GET, POST, OPTIONS
+access-control-allow-headers: DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization
+cf-cache-status: DYNAMIC
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Strict-Transport-Security: max-age=0; includeSubDomains; preload
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=XYWf24%2BacEm9LGWTyilyqq99XE6fnPVYvGnYpTPNKnavj3TO6TImsy0mMTPECnaqoS2G9ACibirW6jL1o0I5qY9zUkdD%2Fq6Tocp%2BICBg3Y%2FVVELPTkcDBjHRATqAV%2FYB4ZY2nxOtoboa2I%2FRDSM%3D"}]}
+CF-RAY: 9e80315b3aad7694-SEA
+alt-svc: h3=":443"; ma=86400
+
+{"errors": [{"message": "Unable to parse query.", "extensions": {"exception": {"code": "str", "stacktrace": []}}}]}

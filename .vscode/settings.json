@@ -1,0 +1,36 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "43.166.132.156",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "腾讯云MySQL",
+            "group": "MySQL",
+            "username": "root",
+            "database": "mysql",
+            "connectionTimeout": 50,
+            "password": "09120202"
+        },
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "10.136.131.169",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "Ubuntu WordPress MySQL",
+            "database": "wordpress_db",
+            "username": "wp_user",
+            "password": "09"
+        }
+    ]
+}

@@ -1,5 +1,5 @@
 const nextConfig = {
-  turbopack: {},
+  
   transpilePackages: ['@apollo/client'],
   async rewrites() {
     return [

@@ -1,8 +1,7 @@
 'use client';
 
-import { useQuery, gql } from '@apollo/client';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
-import Image from 'next/image';
 import {
   ChatBubbleLeftRightIcon,
   SparklesIcon,
@@ -17,49 +16,11 @@ import VoiceModal from '@/components/VoiceModal';
 import ARModal from '@/components/ARModal';
 import RecommendSection from '@/components/RecommendSection';
 
-// 定义商品类型
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  media: Array<{ url: string }>;
-  variants: Array<{
-    pricing: {
-      price: {
-        gross: {
-          amount: number;
-          currency: string;
-        };
-      };
-    };
-  }>;
-}
-
-interface ProductEdge {
-  node: Product;
-}
-
-const GET_PRODUCTS = gql`
-  query GetProducts($first: Int!) {
-    products(first: $first, channel: "default-channel") {
-      edges {
-        node {
-          id
-          name
-          description
-          media { url }
-          variants {
-            pricing {
-              price {
-                gross { amount currency }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
+// 动态导入商品列表组件，禁用 SSR（解决 hydration 错误）
+const ProductList = dynamic(() => import('@/components/ProductList'), {
+  ssr: false,
+  loading: () => <div className="text-center text-gray-500">加载商品中...</div>,
+});
 
 const AI_FEATURES = [
   {
@@ -105,9 +66,6 @@ const AI_FEATURES = [
 ];
 
 export default function Home() {
-  const { loading, error, data } = useQuery(GET_PRODUCTS, {
-    variables: { first: 8 },
-  });
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const closeModal = () => setActiveModal(null);
 
@@ -147,35 +105,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 商品列表部分 */}
+      {/* 商品列表部分 - 使用动态组件避免 SSR 问题 */}
       <section className="container mx-auto px-4 py-16 bg-white dark:bg-gray-900 rounded-t-3xl">
         <h2 className="text-3xl font-bold text-center mb-12 text-gray-800 dark:text-white">精选商品</h2>
-        {loading && <div className="text-center text-gray-500 dark:text-gray-400">加载商品中...</div>}
-        {error && <div className="text-red-500 text-center">出错：{error.message}</div>}
-        {data && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {(data.products.edges as ProductEdge[]).map(({ node }) => (
-              <div key={node.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden shadow hover:shadow-lg transition-shadow">
-                <div className="relative h-64 w-full">
-                  <Image
-                    src={node.media[0]?.url || '/placeholder.png'}
-                    alt={node.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg text-gray-800 dark:text-white">{node.name}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">{node.description?.substring(0, 80)}...</p>
-                  <div className="mt-2 text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                    {node.variants[0]?.pricing?.price?.gross.amount} {node.variants[0]?.pricing?.price?.gross.currency}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <ProductList />
       </section>
 
       <RecommendSection />

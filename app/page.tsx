@@ -16,9 +16,13 @@ import VoiceModal from '@/components/VoiceModal';
 import ARModal from '@/components/ARModal';
 import RecommendSection from '@/components/RecommendSection';
 
-// 动态导入商品列表组件，禁用 SSR（解决 hydration 错误）
+const AIChatModal = dynamic(() => import('@/components/AIChatModal'), { ssr: true });
+const AIImageModal = dynamic(() => import('@/components/AIImageModal'), { ssr: true });
+const TranslateModal = dynamic(() => import('@/components/TranslateModal'), { ssr: true });
+const VoiceModal = dynamic(() => import('@/components/VoiceModal'), { ssr: true });
+const ARModal = dynamic(() => import('@/components/ARModal'), { ssr: true });
 const ProductList = dynamic(() => import('@/components/ProductList'), {
-  ssr: false,
+  ssr: true,
   loading: () => <div className="text-center text-gray-500">加载商品中...</div>,
 });
 

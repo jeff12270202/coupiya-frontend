@@ -9,20 +9,16 @@ import {
   MicrophoneIcon,
   CameraIcon,
 } from '@heroicons/react/24/outline';
-import AIChatModal from '@/components/AIChatModal';
-import AIImageModal from '@/components/AIImageModal';
-import TranslateModal from '@/components/TranslateModal';
-import VoiceModal from '@/components/VoiceModal';
-import ARModal from '@/components/ARModal';
 import RecommendSection from '@/components/RecommendSection';
 
-const AIChatModal = dynamic(() => import('@/components/AIChatModal'), { ssr: true });
-const AIImageModal = dynamic(() => import('@/components/AIImageModal'), { ssr: true });
-const TranslateModal = dynamic(() => import('@/components/TranslateModal'), { ssr: true });
-const VoiceModal = dynamic(() => import('@/components/VoiceModal'), { ssr: true });
-const ARModal = dynamic(() => import('@/components/ARModal'), { ssr: true });
+// 动态导入所有模态框和商品列表，禁用 SSR（解决 hydration 错误）
+const AIChatModal = dynamic(() => import('@/components/AIChatModal'), { ssr: false });
+const AIImageModal = dynamic(() => import('@/components/AIImageModal'), { ssr: false });
+const TranslateModal = dynamic(() => import('@/components/TranslateModal'), { ssr: false });
+const VoiceModal = dynamic(() => import('@/components/VoiceModal'), { ssr: false });
+const ARModal = dynamic(() => import('@/components/ARModal'), { ssr: false });
 const ProductList = dynamic(() => import('@/components/ProductList'), {
-  ssr: true,
+  ssr: false,
   loading: () => <div className="text-center text-gray-500">加载商品中...</div>,
 });
 

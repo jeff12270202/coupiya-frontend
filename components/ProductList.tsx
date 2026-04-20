@@ -46,6 +46,14 @@ const GET_PRODUCTS = gql`
   }
 `;
 
+// 处理图片 URL：如果是相对路径，拼接完整域名
+const getImageUrl = (url: string) => {
+  if (!url) return '/placeholder.png';
+  if (url.startsWith('http')) return url;
+  // 假设后端返回相对路径如 /media/xxx.jpg，则补全域名
+  return `https://api.coupiya.com${url}`;
+};
+
 export default function ProductList() {
   const { loading, error, data } = useQuery(GET_PRODUCTS, {
     variables: { first: 8 },
@@ -62,7 +70,7 @@ export default function ProductList() {
         <div key={node.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden shadow hover:shadow-lg transition-shadow">
           <div className="relative h-64 w-full">
             <Image
-              src={node.media[0]?.url || '/placeholder.png'}
+              src={getImageUrl(node.media[0]?.url)}
               alt={node.name}
               fill
               className="object-cover"

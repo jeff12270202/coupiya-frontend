@@ -46,12 +46,14 @@ const GET_PRODUCTS = gql`
   }
 `;
 
-// 处理图片 URL：如果是相对路径，拼接完整域名
 const getImageUrl = (url: string) => {
   if (!url) return '/placeholder.png';
-  if (url.startsWith('http')) return url;
-  // 假设后端返回相对路径如 /media/xxx.jpg，则补全域名
-  return `https://api.coupiya.com${url}`;
+  let fixedUrl = url
+    .replace(/^https?:\/\/localhost:8000/, 'https://api.coupiya.com')
+    .replace(/\/thumbnails\//, '/media/');
+  if (fixedUrl.startsWith('http')) return fixedUrl;
+  // 相对路径
+  return `https://api.coupiya.com${fixedUrl}`;
 };
 
 export default function ProductList() {

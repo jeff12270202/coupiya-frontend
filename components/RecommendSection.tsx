@@ -26,6 +26,14 @@ interface ProductEdge {
   node: Product;
 }
 
+// 处理图片 URL：如果是相对路径，拼接完整域名
+const getImageUrl = (url: string | undefined) => {
+  if (!url) return 'https://placehold.co/400x300/6366F1/white?text=Product';
+  if (url.startsWith('http')) return url;
+  // 假设后端返回相对路径如 /media/xxx.jpg，则补全域名
+  return `process.env.NEXT_PUBLIC_MEDIA_URL${url}`;
+};
+
 export default function RecommendSection() {
   const [recommendations, setRecommendations] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +67,7 @@ export default function RecommendSection() {
           body: JSON.stringify({
             query: `
               query GetProductsByIds($ids: [ID!]!) {
-                products(ids: $ids, channel: "default-channel", first: 10) {
+                products(filter: { ids: $ids }, channel: "default-channel", first: 10) {
                   edges { node { id name description media { url } variants { pricing { price { gross { amount currency } } } } } }
                 }
               }
@@ -106,7 +114,7 @@ export default function RecommendSection() {
           <div key={product.id} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="h-48 overflow-hidden relative">
               <Image
-                src={product.media?.[0]?.url || 'https://placehold.co/400x300/6366F1/white?text=Product'}
+                src={getImageUrl(product.media?.[0]?.url)}
                 alt={product.name}
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-300"

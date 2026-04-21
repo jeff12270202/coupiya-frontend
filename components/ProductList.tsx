@@ -51,7 +51,7 @@ const getImageUrl = (url: string) => {
   if (!url) return '/placeholder.png';
   if (url.startsWith('http')) return url;
   // 假设后端返回相对路径如 /media/xxx.jpg，则补全域名
-  return `https://api.coupiya.com${url}`;
+  return `process.env.NEXT_PUBLIC_MEDIA_URL${url}`;
 };
 
 export default function ProductList() {

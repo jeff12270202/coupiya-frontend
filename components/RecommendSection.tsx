@@ -31,7 +31,7 @@ const getImageUrl = (url: string | undefined) => {
   if (!url) return 'https://placehold.co/400x300/6366F1/white?text=Product';
   if (url.startsWith('http')) return url;
   // 假设后端返回相对路径如 /media/xxx.jpg，则补全域名
-  return `process.env.NEXT_PUBLIC_MEDIA_URL${url}`;
+  return `${process.env.NEXT_PUBLIC_MEDIA_URL}${url}`;
 };
 
 export default function RecommendSection() {

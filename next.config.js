@@ -24,7 +24,7 @@ const nextConfig = {
         hostname: 'api.coupiya.com',
       },
       {
-        protocol: 'http',
+        protocol: 'https',
         hostname: '43.166.132.156',
         port: '9001',
         pathname: '/saleor-media/**',
@@ -33,4 +33,8 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = {
+  images: {
+    unoptimized: true,   // 关闭 Vercel 图片优化，直接返回原始 URL
+  },
+};

@@ -1,5 +1,4 @@
 const nextConfig = {
-  
   transpilePackages: ['@apollo/client'],
   async rewrites() {
     return [
@@ -14,7 +13,8 @@ const nextConfig = {
     ];
   },
   images: {
-    remotePatterns: [
+    unoptimized: true,   // 关闭 Vercel 图片优化，解决 502
+    remotePatterns: [    // 保留远程模式（虽然 unoptimized 时可能不需要，但保留无害）
       {
         protocol: 'https',
         hostname: 'placehold.co',
@@ -33,8 +33,4 @@ const nextConfig = {
   },
 };
 
-module.exports = {
-  images: {
-    unoptimized: true,   // 关闭 Vercel 图片优化，直接返回原始 URL
-  },
-};
+module.exports = nextConfig;

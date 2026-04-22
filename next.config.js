@@ -23,7 +23,12 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'api.coupiya.com',
       },
-      // 如果需要其他域名，继续添加
+      {
+        protocol: 'http',
+        hostname: '43.166.132.156',
+        port: '9001',
+        pathname: '/saleor-media/**',
+      },
     ],
   },
 };

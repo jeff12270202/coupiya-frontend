@@ -13,8 +13,8 @@ const nextConfig = {
     ];
   },
   images: {
-    unoptimized: true,   // 关闭 Vercel 图片优化，解决 502
-    remotePatterns: [    // 保留远程模式（虽然 unoptimized 时可能不需要，但保留无害）
+    unoptimized: true,
+    remotePatterns: [
       {
         protocol: 'https',
         hostname: 'placehold.co',
@@ -23,12 +23,7 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'api.coupiya.com',
       },
-      {
-        protocol: 'https',
-        hostname: '43.166.132.156',
-        port: '9001',
-        pathname: '/saleor-media/**',
-      },
+      // 移除了 43.166.132.156:9001 因为不是图片服务端口
     ],
   },
 };

@@ -1,21 +1,533 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>GOLLLETS · 周计划追踪器</title>
+    <!-- Google Fonts: Nunito 为主要字体（优雅现代） -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <!-- 简单的重置与自定义样式：完全符合提供的设计 token，同时移除未编译的 @tailwind 指令，保留所有核心视觉 -->
+    <style>
+        /* ----- 重置 & 基础变量 (严格遵循用户提供的配色与暗色模式) ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+        :root {
+            --background: #fff9f7;
+            --foreground: #2c241f;
+            --primary: #f9a8d4;
+            --primary-dark: #f472b6;
+            --primary-soft: #fce4ec;
+            --accent-warm: #fbbf6d;
+            --card-bg: rgba(255, 248, 245, 0.85);
+            --border-light: #ffe2e8;
+            --shadow-sm: 0 12px 28px -8px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+            --shadow-hover: 0 20px 32px -12px rgba(249, 168, 212, 0.2);
+        }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: #2a241f;
+                --foreground: #fef3e8;
+                --primary: #f9a8d8;
+                --primary-dark: #f9a8d4;
+                --primary-soft: #4a3b32;
+                --card-bg: rgba(45, 38, 33, 0.85);
+                --border-light: #4e3e34;
+                --shadow-sm: 0 12px 28px -8px rgba(0, 0, 0, 0.3);
+                --shadow-hover: 0 20px 32px -12px rgba(249, 168, 212, 0.15);
+            }
+        }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+        body {
+            background: var(--background);
+            color: var(--foreground);
+            font-family: 'Nunito', 'Quicksand', system-ui, -apple-system, sans-serif;
+            transition: background 0.2s ease, color 0.2s ease;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* 自定义滚动条 (严格遵循提供的样式) */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #fce4ec;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f9a8d4;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f472b6;
+        }
+        @media (prefers-color-scheme: dark) {
+            ::-webkit-scrollbar-track {
+                background: #4a3b32;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #f9a8d8;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: #fbb6ce;
+            }
+        }
+
+        /* 陶瓷纹理背景辅助类 (用户提供原版肌理) */
+        .bg-ceramic {
+            background-image: radial-gradient(circle at 10% 20%, rgba(249, 168, 212, 0.08) 2%, transparent 2.5%),
+                              radial-gradient(circle at 80% 70%, rgba(253, 186, 116, 0.05) 1.5%, transparent 2%);
+            background-size: 40px 40px, 35px 35px;
+        }
+
+        /* 全局额外布局与组件样式 ———— 柔和、现代、陶艺质感 */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(2px);
+            border: 1px solid var(--border-light);
+            border-radius: 2rem;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .glass-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .checklist-item {
+            transition: all 0.2s ease;
+            border-bottom: 1px solid rgba(249, 168, 212, 0.2);
+        }
+        .checklist-item:last-child {
+            border-bottom: none;
+        }
+
+        /* 自定义复选框 ———— 灵感来自日式手账 */
+        .goal-check {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 1.4rem;
+            height: 1.4rem;
+            background: transparent;
+            border: 2px solid var(--primary);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.15s;
+            margin-right: 0.75rem;
+            flex-shrink: 0;
+        }
+        .goal-check:checked {
+            background: var(--primary);
+            border-color: var(--primary-dark);
+            box-shadow: 0 0 0 2px rgba(249, 168, 212, 0.3);
+        }
+        .goal-check:checked::after {
+            content: "✓";
+            position: absolute;
+            color: #2c241f;
+            font-size: 0.9rem;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        @media (prefers-color-scheme: dark) {
+            .goal-check:checked::after {
+                color: #2a241f;
+            }
+        }
+
+        /* 完成任务的文字效果 */
+        .completed-text {
+            text-decoration: line-through;
+            opacity: 0.65;
+        }
+
+        /* 进度条 */
+        .progress-bar-bg {
+            background: rgba(249, 168, 212, 0.2);
+            border-radius: 40px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            border-radius: 40px;
+            width: 0%;
+            height: 100%;
+            transition: width 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        /* 陶瓷印章装饰 */
+        .ceramic-stamp {
+            background: radial-gradient(ellipse at 30% 40%, rgba(249,168,212,0.1), transparent);
+            border-radius: 50%;
+        }
+
+        /* 标题艺术字效果 */
+        .logo-golllets {
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--foreground) 30%, var(--primary) 80%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 5px rgba(249,168,212,0.15);
+        }
+
+        button {
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-ceramic">
+    <!-- 整个页面容器：优雅居中布局，最大宽度留白舒适 -->
+    <div class="max-w-4xl mx-auto px-5 py-8 md:py-12 lg:py-14">
+        
+        <!-- 头部区域：GOLLLETS 与 WEEK 1 醒目展示 -->
+        <div class="glass-card p-6 md:p-8 mb-8 text-center md:text-left md:flex md:justify-between md:items-center">
+            <div>
+                <h1 class="logo-golllets text-5xl md:text-7xl font-extrabold tracking-tight mb-2" style="font-family: 'Nunito', sans-serif;">
+                    GOLLLETS
+                </h1>
+                <p class="text-primary-dark font-medium mt-1 tracking-wide flex items-center justify-center md:justify-start gap-2">
+                    <span class="inline-block w-2 h-2 rounded-full bg-primary"></span>
+                    瞄准微光，步履不停
+                </p>
+            </div>
+            <div class="mt-4 md:mt-0 bg-primary-soft/30 rounded-3xl py-3 px-6 backdrop-blur-sm inline-block">
+                <div class="text-sm uppercase tracking-[0.2em] text-primary-dark font-semibold">当前周期</div>
+                <div class="text-4xl md:text-5xl font-black flex items-baseline gap-1">
+                    <strong class="text-foreground">WEEK 1</strong>
+                    <span class="text-sm font-normal text-primary-dark">/ 12</span>
+                </div>
+                <div class="text-xs text-primary-dark/70 mt-1">📅 2026.04.28 — 2026.05.04</div>
+            </div>
+        </div>
+
+        <!-- 两列布局：主要目标列表 + 右侧概览卡片 (响应式) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左侧主要区域：目标清单 (任务tracker) -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 周目标卡片 - 核心任务列表 -->
+                <div class="glass-card p-6 md:p-7">
+                    <div class="flex justify-between items-center flex-wrap gap-3 mb-5">
+                        <div>
+                            <h2 class="text-2xl font-bold flex items-center gap-2">
+                                <span class="text-primary text-3xl">✦</span> 本周要事
+                            </h2>
+                            <p class="text-sm text-foreground/60 mt-1">每完成一项，就点亮一颗金粉✨</p>
+                        </div>
+                        <div class="text-sm bg-primary/10 py-2 px-4 rounded-full">
+                            🎯 进度 · <span id="progress-percent">0</span>%
+                        </div>
+                    </div>
+
+                    <!-- 动态目标列表 (任务清单) 使用data属性记录完成状态更新进度条 -->
+                    <div class="space-y-4" id="goals-list-container">
+                        <!-- 预设 6 个典型的周计划目标，贴合 Week 1 主题，风格温暖激励 -->
+                        <div class="checklist-item py-3 flex items-center group">
+                            <input type="checkbox" class="goal-check goal-item" data-goal-id="1">
+                            <label class="flex-1 text-foreground font-medium cursor-pointer transition goal-label">📖 阅读《陶瓷手记》前两章 & 做笔记</label>
+                            <span class="text-xs text-primary-dark/50 group-hover:text-primary-dark transition">日常灵感</span>
+                        </div>
+                        <div class="checklist-item py-3 flex items-center group">
+                            <input type="checkbox" class="goal-check goal-item" data-goal-id="2">
+                            <label class="flex-1 text-foreground font-medium cursor-pointer transition goal-label">🎨 完成核心插画草图 · 周主题「萌芽」</label>
+                            <span class="text-xs text-primary-dark/50 group-hover:text-primary-dark transition">创意输出</span>
+                        </div>
+                        <div class="checklist-item py-3 flex items-center group">
+                            <input type="checkbox" class="goal-check goal-item" data-goal-id="3">
+                            <label class="flex-1 text-foreground font-medium cursor-pointer transition goal-label">🧘🏽 每日冥想 + 晨间拉伸 (打卡5天以上)</label>
+                            <span class="text-xs text-primary-dark/50 group-hover:text-primary-dark transition">身心养护</span>
+                        </div>
+                        <div class="checklist-item py-3 flex items-center group">
+                            <input type="checkbox" class="goal-check goal-item" data-goal-id="4">
+                            <label class="flex-1 text-foreground font-medium cursor-pointer transition goal-label">✍️ 周复盘日记 & 下周三件要事规划</label>
+                            <span class="text-xs text-primary-dark/50 group-hover:text-primary-dark transition">反思沉淀</span>
+                        </div>
+                        <div class="checklist-item py-3 flex items-center group">
+                            <input type="checkbox" class="goal-check goal-item" data-goal-id="5">
+                            <label class="flex-1 text-foreground font-medium cursor-pointer transition goal-label">🌱 学习一项新技能：陶瓷釉下彩基础 (网课3节)</label>
+                            <span class="text-xs text-primary-dark/50 group-hover:text-primary-dark transition">成长跃迁</span>
+                        </div>
+                        <div class="checklist-item py-3 flex items-center group">
+                            <input type="checkbox" class="goal-check goal-item" data-goal-id="6">
+                            <label class="flex-1 text-foreground font-medium cursor-pointer transition goal-label">🤝 与朋友/伙伴交换一次鼓励笔记 or 小礼物</label>
+                            <span class="text-xs text-primary-dark/50 group-hover:text-primary-dark transition">温暖联结</span>
+                        </div>
+                    </div>
+
+                    <!-- 进度条区域 动态显示 -->
+                    <div class="mt-8 pt-2">
+                        <div class="flex justify-between text-sm mb-2 font-medium">
+                            <span>本周整体完成度</span>
+                            <span id="progress-label">0/6 项</span>
+                        </div>
+                        <div class="progress-bar-bg h-2.5 w-full">
+                            <div class="progress-fill h-full" id="progress-fill-bar" style="width: 0%;"></div>
+                        </div>
+                        <p class="text-xs text-foreground/50 mt-3 italic flex items-center gap-1">
+                            <span>💪 不必完美，但要诚实面对自己的每一次前进</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 补充分享卡片：额外周次提示 + 陶瓷纹理小彩蛋 -->
+                <div class="glass-card p-6 flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 text-primary-dark">
+                            <span class="text-2xl">🏺</span>
+                            <span class="font-semibold">「手捏陶土，心塑日常」</span>
+                        </div>
+                        <p class="text-sm text-foreground/70 mt-1">本周聚焦小而美，每个 goal 都是一块独特的彩釉碎片。</p>
+                    </div>
+                    <div class="bg-primary-soft/40 rounded-full px-4 py-2 text-xs font-mono">
+                        #GOLLLETS_WEEK1
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧侧边栏：动机计数器 & 习惯标签 & 引语 -->
+            <div class="space-y-6">
+                <!-- 本周心情 / 习惯追踪简卡 -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-xl flex items-center gap-1">
+                            <span>✨</span> 每日打卡
+                        </h3>
+                        <div class="text-xs bg-primary/10 rounded-full px-3 py-1">习惯微光</div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center border-b border-dashed border-primary/20 pb-2">
+                            <span class="flex items-center gap-2">☀️ 早起 (07:30前)</span>
+                            <span class="text-primary-dark font-bold">3/7</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-dashed border-primary/20 pb-2">
+                            <span class="flex items-center gap-2">💧 饮水1.8L</span>
+                            <span class="text-primary-dark font-bold">4/7</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-dashed border-primary/20 pb-2">
+                            <span class="flex items-center gap-2">📵 无屏幕阅读1小时</span>
+                            <span class="text-primary-dark font-bold">2/7</span>
+                        </div>
+                        <div class="flex justify-between items-center pt-1">
+                            <span class="flex items-center gap-2">🎧 英语/播客 15min</span>
+                            <span class="text-primary-dark font-bold">5/7</span>
+                        </div>
+                    </div>
+                    <button class="w-full mt-5 py-2 rounded-full bg-primary/10 text-primary-dark font-semibold text-sm hover:bg-primary/20 transition" id="motivation-quote-btn">
+                        🌟 喝一口陶瓷鸡汤
+                    </button>
+                    <p class="text-xs text-center mt-3 text-foreground/60 italic" id="random-quote">“釉色流动之处，皆有生机。”</p>
+                </div>
+
+                <!-- 查看周次笔记/灵感区域 -->
+                <div class="glass-card p-6">
+                    <h3 class="font-bold text-lg flex items-center gap-2 mb-3">
+                        <span>📝</span> Week 1 · 灵感笔记
+                    </h3>
+                    <div class="bg-primary-soft/10 p-3 rounded-xl text-sm leading-relaxed">
+                        <span class="font-semibold text-primary-dark">🌿 第一周寄语：</span><br>
+                        陶瓷需要耐心窑烧，成长也是。在GOLLLETS的世界里，每一点行动都会让生命的纹理更丰富。<br>
+                        <span class="inline-block mt-2">—— 记录下本周最让你心动的瞬间吧。</span>
+                    </div>
+                    <textarea rows="2" class="w-full mt-4 p-3 rounded-xl bg-transparent border border-primary/30 focus:border-primary focus:outline-none resize-none text-sm" placeholder="写一句给自己的周札记... 点击保存灵感"></textarea>
+                    <button class="text-xs text-primary-dark/70 mt-2 hover:text-primary transition text-right w-full" id="saveNoteBtn">💾 保存笔记至本地</button>
+                    <div id="noteSavedMsg" class="text-xs text-green-500 mt-1 opacity-0 transition">已保存到浏览器中 ✨</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 底部 脚注优雅呈现 -->
+        <footer class="mt-12 text-center text-sm text-foreground/50 border-t border-primary/20 pt-6">
+            <p>GOLLLETS · 手作式目标管理 | 温柔坚持，时光会为你上釉</p>
+            <p class="text-xs mt-1 flex justify-center gap-3">
+                <span>🏺 陶瓷肌理灵感</span>
+                <span>🎯 WEEK 1 启程</span>
+                <span>✨ 每日微进步</span>
+            </p>
+        </footer>
+    </div>
+
+    <!-- 简单的交互逻辑：复选框统计进度，自动更新进度条及百分比; 本地存储笔记+随机语录库 -->
+    <script>
+        (function(){
+            // 获取所有checkboxes 与 对应标签
+            const checkboxes = document.querySelectorAll('.goal-item');
+            const progressPercentSpan = document.getElementById('progress-percent');
+            const progressFill = document.getElementById('progress-fill-bar');
+            const progressLabelSpan = document.getElementById('progress-label');
+            
+            // 更新进度条函数
+            function updateProgress() {
+                const total = checkboxes.length;
+                const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+                const percent = total === 0 ? 0 : Math.round((checked / total) * 100);
+                if(progressPercentSpan) progressPercentSpan.innerText = percent;
+                if(progressFill) progressFill.style.width = percent + '%';
+                if(progressLabelSpan) progressLabelSpan.innerText = `${checked}/${total} 项`;
+                // 动态改变已完成任务 label 样式 (添加划掉效果)
+                checkboxes.forEach(cb => {
+                    const parentDiv = cb.closest('.checklist-item');
+                    if(parentDiv) {
+                        const labelSpan = parentDiv.querySelector('.goal-label');
+                        if(cb.checked) {
+                            labelSpan?.classList.add('completed-text');
+                        } else {
+                            labelSpan?.classList.remove('completed-text');
+                        }
+                    }
+                });
+            }
+
+            // 监听每个checkbox事件
+            function bindEvents() {
+                checkboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function(e) {
+                        updateProgress();
+                        // 可选：保存当前进度到 localStorage (让用户刷新后保持勾选状态)
+                        saveCheckboxState();
+                    });
+                });
+            }
+
+            // 保存复选框选中状态到 localStorage
+            function saveCheckboxState() {
+                const states = Array.from(checkboxes).map(cb => cb.checked);
+                localStorage.setItem('golllets_week1_goals', JSON.stringify(states));
+            }
+
+            // 加载复选框历史状态
+            function loadCheckboxState() {
+                const saved = localStorage.getItem('golllets_week1_goals');
+                if(saved) {
+                    const states = JSON.parse(saved);
+                    if(states && states.length === checkboxes.length) {
+                        checkboxes.forEach((cb, idx) => {
+                            cb.checked = states[idx];
+                        });
+                        updateProgress();
+                    } else {
+                        // 如果存储不匹配, 重置无状态 (默认都不完成)
+                        checkboxes.forEach(cb => cb.checked = false);
+                        updateProgress();
+                    }
+                } else {
+                    // 首次访问，全部未勾选
+                    updateProgress();
+                }
+                // 附加确保样式正确
+            }
+
+            // 为节省交互体验，点击对应label也可以触发checkbox（原本html中label关联？由于label未使用for，手动将点击label关联到前置checkbox）
+            function enhanceLabelClicks() {
+                document.querySelectorAll('.checklist-item').forEach(item => {
+                    const label = item.querySelector('.goal-label');
+                    const cb = item.querySelector('.goal-item');
+                    if(label && cb) {
+                        label.style.cursor = 'pointer';
+                        label.addEventListener('click', (e) => {
+                            // 避免冒泡重复触发
+                            if(e.target.tagName !== 'INPUT') {
+                                cb.checked = !cb.checked;
+                                const changeEvent = new Event('change', { bubbles: true });
+                                cb.dispatchEvent(changeEvent);
+                                saveCheckboxState();
+                            }
+                        });
+                    }
+                });
+            }
+
+            // ----- 右侧语录随机库 (陶瓷主题) -----
+            const quoteList = [
+                "“烧窑时，你不知道最终会得到什么颜色，但火与土的交融必定产生奇迹。”",
+                "“裂纹不是缺陷，是金继描绘的独特脉络。”",
+                "“捏一个碗，像完成一个日常目标，不必完美，但要完整。”",
+                "“釉的流动，就是努力的痕迹。”",
+                "“粗糙的泥土经过千度火焰，就变成了温润的瓷 — 你也一样。”",
+                "“本周进度哪怕只有一小步，那也是窑变的魔法。”",
+                "“GOLLLETS 相信：微小的持续，雕刻生活的光泽。”",
+                "“Week 1 不必着急，陶艺家懂得等待。”"
+            ];
+            const quoteBtn = document.getElementById('motivation-quote-btn');
+            const quoteSpan = document.getElementById('random-quote');
+            if(quoteBtn && quoteSpan) {
+                quoteBtn.addEventListener('click', () => {
+                    const randomIdx = Math.floor(Math.random() * quoteList.length);
+                    quoteSpan.innerText = quoteList[randomIdx];
+                    // 添加简单动画反馈
+                    quoteSpan.style.opacity = '0';
+                    setTimeout(() => { quoteSpan.style.opacity = '1'; }, 100);
+                });
+            }
+
+            // 笔记保存功能 (本地存储，textarea)
+            const noteTextarea = document.querySelector('textarea');
+            const saveNoteBtn = document.getElementById('saveNoteBtn');
+            const noteMsg = document.getElementById('noteSavedMsg');
+            if(noteTextarea && saveNoteBtn) {
+                // 加载已保存的笔记
+                const savedNote = localStorage.getItem('golllets_week1_note');
+                if(savedNote) noteTextarea.value = savedNote;
+                saveNoteBtn.addEventListener('click', () => {
+                    const noteContent = noteTextarea.value;
+                    localStorage.setItem('golllets_week1_note', noteContent);
+                    if(noteMsg) {
+                        noteMsg.style.opacity = '1';
+                        noteMsg.innerText = '✨ 灵感笔记已保存～';
+                        setTimeout(() => {
+                            noteMsg.style.opacity = '0';
+                        }, 2000);
+                    }
+                });
+            }
+
+            // 添加“每日打卡”上的简单本地进度模拟提升趣味（非强制同步，只是视觉展示，但是为了完整性保留；由于是静态模拟进度,不做复杂存储，但用户打卡数字展示已经展示当期周次意图）
+            // 可选让复选框整体进度同步到每日打卡感觉没必要，保持目前清爽即可。
+            
+            // 为了体现周进度和存档, 还可以在页面加载时更新右侧的咖啡因小任务完成比例不需要过于复杂。额外handle初始load
+            // 同时利用本地存储保存周目标状态
+            function init() {
+                loadCheckboxState();
+                bindEvents();
+                enhanceLabelClicks();
+                // 额外随机一个友好欢迎语录
+                if(quoteSpan) {
+                    const randomIdx = Math.floor(Math.random() * quoteList.length);
+                    quoteSpan.innerText = quoteList[randomIdx];
+                }
+                // 确保在暗色模式与手动变更时不需要额外处理
+            }
+            
+            init();
+
+            // 兼容深色模式滚动条手动重绘不需要额外干预, 全部使用css变量的完美动态。
+            // 另外为保持陶瓷背景层次感, body类已经被添加 bg-ceramic, 并额外给所有glass-card微透感
+            
+            // 简单优雅的本地存储  周目标 二次保存防止因为浏览器刷新导致丢失进度
+            window.addEventListener('beforeunload', () => {
+                saveCheckboxState();
+                if(noteTextarea) localStorage.setItem('golllets_week1_note', noteTextarea.value);
+            });
+            
+            // 监听复选框变化自动保存状态
+            const originalSave = saveCheckboxState;
+            const observer = new MutationObserver(() => {
+                // 无需复杂，change已经调用save
+            });
+            // 确保每次change都会执行保存，在bindEvents里已调用saveCheckboxState; 再补一个全局
+            const extraSave = () => { saveCheckboxState(); };
+            checkboxes.forEach(cb => cb.addEventListener('change', extraSave));
+        })();
+    </script>
+</body>
+</html>

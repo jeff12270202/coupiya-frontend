@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
-// 定义商品数据类型
 interface Product {
   id: string;
   name: string;
@@ -21,18 +20,13 @@ interface Product {
   }>;
 }
 
-// GraphQL 响应中 edges 节点的类型
-interface ProductEdge {
-  node: Product;
-}
-
-// 处理图片 URL：如果是相对路径，拼接完整域名
 const getImageUrl = (url: string | undefined) => {
-  if (!url) return 'https://placehold.co/400x300/6366F1/white?text=Product';
+  if (!url) return 'https://placehold.co/400x300/FDE68A/white?text=陶瓷饰品';
   if (url.startsWith('http')) return url;
-  // 假设后端返回相对路径如 /media/xxx.jpg，则补全域名
-  return `${process.env.NEXT_PUBLIC_MEDIA_URL}${url}`;
+  return `https://api.coupiya.com${url}`;
 };
+
+const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD';
 
 export default function RecommendSection() {
   const [recommendations, setRecommendations] = useState<Product[]>([]);
@@ -44,6 +38,7 @@ export default function RecommendSection() {
 
   const fetchRecommendations = async () => {
     try {
+      // 尝试调用真实推荐 API（如果未实现，则回退到获取随机商品）
       const response = await fetch('/api/ai/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,31 +49,49 @@ export default function RecommendSection() {
       if (response.ok) {
         const data = await response.json();
         productIds = data.productIds || data.recommendations || [];
-      } else {
-        // Mock recommendation IDs (using demo IDs)
-        productIds = ['UHJvZHVjdDox', 'UHJvZHVjdDoy', 'UHJvZHVjdDo0', 'UHJvZHVjdDo1'];
       }
 
-      // Fetch product details from Saleor
-      if (productIds.length > 0) {
-        const result = await fetch('/api/graphql', {
+      // 如果没有推荐 ID，则获取最新商品作为 fallback
+      if (productIds.length === 0) {
+        const fallbackRes = await fetch('/api/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             query: `
-              query GetProductsByIds($ids: [ID!]!) {
-                products(filter: { ids: $ids }, channel: "default-channel", first: 10) {
+              query GetLatestProducts($first: Int!, $channel: String!) {
+                products(first: $first, channel: $channel) {
                   edges { node { id name description media { url } variants { pricing { price { gross { amount currency } } } } } }
                 }
               }
             `,
-            variables: { ids: productIds },
+            variables: { first: 4, channel: CHANNEL },
           }),
         });
-        const graphqlData = await result.json();
-        const edges: ProductEdge[] = graphqlData.data?.products?.edges || [];
-        setRecommendations(edges.map((edge: ProductEdge) => edge.node));
+        const fallbackData = await fallbackRes.json();
+        const edges = fallbackData.data?.products?.edges || [];
+        setRecommendations(edges.map((e: any) => e.node));
+        setIsLoading(false);
+        return;
       }
+
+      // 根据推荐 ID 获取商品详情
+      const result = await fetch('/api/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query GetProductsByIds($ids: [ID!]!, $channel: String!) {
+              products(filter: { ids: $ids }, channel: $channel, first: 10) {
+                edges { node { id name description media { url } variants { pricing { price { gross { amount currency } } } } } }
+              }
+            }
+          `,
+          variables: { ids: productIds, channel: CHANNEL },
+        }),
+      });
+      const graphqlData = await result.json();
+      const edges = graphqlData.data?.products?.edges || [];
+      setRecommendations(edges.map((edge: any) => edge.node));
     } catch (error) {
       console.error('Recommendation error:', error);
     } finally {
@@ -90,7 +103,7 @@ export default function RecommendSection() {
     return (
       <section className="container mx-auto px-4 py-16">
         <div className="flex justify-center items-center py-12">
-          <div className="animate-pulse text-gray-500">AI正在为你生成个性化推荐...</div>
+          <div className="animate-pulse text-rose-400">✨ AI 小仙女正在为你挑选陶瓷美物 ✨</div>
         </div>
       </section>
     );
@@ -99,40 +112,39 @@ export default function RecommendSection() {
   if (recommendations.length === 0) return null;
 
   return (
-    <section className="container mx-auto px-4 py-16 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 bg-indigo-100 dark:bg-indigo-900/50 px-4 py-2 rounded-full mb-4">
-          <span className="text-indigo-600 dark:text-indigo-400">🤖</span>
-          <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">AI智能推荐</span>
+    <section className="container mx-auto px-4 py-16 bg-gradient-to-r from-rose-50 to-amber-50 rounded-3xl my-8">
+      <div className="text-center mb-10">
+        <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm px-5 py-2 rounded-full shadow-sm mb-4">
+          <span className="text-rose-500 text-xl">🎀</span>
+          <span className="text-sm font-medium text-rose-600">AI 穿搭灵感</span>
         </div>
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white">为您推荐</h2>
-        <p className="text-gray-600 dark:text-gray-300 mt-2">基于深度学习的个性化推荐系统</p>
+        <h2 className="text-4xl font-serif font-bold text-gray-800">专属推荐 · 东方雅韵</h2>
+        <p className="text-gray-500 mt-2">根据你的喜好智能生成陶瓷饰品搭配</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {recommendations.map((product: Product) => (
-          <div key={product.id} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="h-48 overflow-hidden relative">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7">
+        {recommendations.map((product) => (
+          <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group">
+            <div className="h-56 overflow-hidden relative bg-amber-50">
               <Image
                 src={getImageUrl(product.media?.[0]?.url)}
                 alt={product.name}
                 fill
-                className="object-cover hover:scale-105 transition-transform duration-300"
+                className="object-cover group-hover:scale-105 transition duration-500"
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               />
             </div>
-            <div className="p-4">
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-1">{product.name}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                {product.description?.replace(/<[^>]*>/g, '').slice(0, 60)}
+            <div className="p-5">
+              <h3 className="font-serif text-lg font-semibold text-gray-800">{product.name}</h3>
+              <p className="text-sm text-gray-500 line-clamp-2 mt-1">
+                {product.description?.replace(/<[^>]*>/g, '').slice(0, 60) || '温润细腻，手工匠心'}
               </p>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                  {product.variants?.[0]?.pricing?.price?.gross.amount || '0'}{' '}
-                  {product.variants?.[0]?.pricing?.price?.gross.currency || 'CNY'}
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-xl font-bold text-rose-500">
+                  {product.variants?.[0]?.pricing?.price?.gross.amount || '0'} {product.variants?.[0]?.pricing?.price?.gross.currency || 'CNY'}
                 </span>
-                <button className="px-3 py-1 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                  查看详情
+                <button className="px-4 py-2 text-sm bg-rose-500 text-white rounded-full hover:bg-rose-600 transition shadow-sm">
+                  心动收藏
                 </button>
               </div>
             </div>
@@ -140,9 +152,9 @@ export default function RecommendSection() {
         ))}
       </div>
 
-      <div className="text-center mt-8">
-        <button className="px-6 py-2 border border-indigo-600 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors">
-          更多推荐 →
+      <div className="text-center mt-10">
+        <button className="px-8 py-2 border-2 border-rose-300 text-rose-600 rounded-full hover:bg-rose-50 transition">
+          探索更多灵感 →
         </button>
       </div>
     </section>

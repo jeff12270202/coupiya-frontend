@@ -2,6 +2,7 @@
 
 import { useQuery, gql } from '@apollo/client';
 import Image from 'next/image';
+import Link from 'next/link';
 import RenderEditorJSON from './RenderEditorJSON';
 
 interface Product {
@@ -52,9 +53,7 @@ const GET_PRODUCTS = gql`
 
 const getImageUrl = (url: string | undefined): string => {
   if (!url) return '/placeholder.png';
-  // 已经是以 http 开头的完整 URL，直接返回（Saleor 已生成带签名的地址）
   if (url.startsWith('http')) return url;
-  // 相对路径，补充域名（一般不会出现，但保留兼容）
   return `https://api.coupiya.com${url}`;
 };
 
@@ -97,9 +96,9 @@ export default function ProductList() {
               <span className="text-2xl font-bold text-rose-500">
                 {node.variants[0]?.pricing?.price?.gross.amount || '0'} {node.variants[0]?.pricing?.price?.gross.currency || 'CNY'}
               </span>
-              <button className="px-4 py-2 text-sm bg-rose-100 text-rose-600 rounded-full hover:bg-rose-200 transition-colors">
+              <Link href={`/product/${node.id}`} className="px-4 py-2 text-sm bg-rose-100 text-rose-600 rounded-full hover:bg-rose-200 transition-colors inline-block text-center">
                 查看详情
-              </button>
+              </Link>
             </div>
           </div>
         </div>

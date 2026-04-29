@@ -26,7 +26,7 @@ const getImageUrl = (url: string | undefined) => {
   return `https://api.coupiya.com${url}`;
 };
 
-const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD';
+const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD default-channel channel-pln';
 
 export default function RecommendSection() {
   const [recommendations, setRecommendations] = useState<Product[]>([]);

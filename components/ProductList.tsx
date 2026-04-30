@@ -27,7 +27,7 @@ interface ProductEdge {
 }
 
 // 正确渠道名（根据你的 Saleor Dashboard 调整，可使用环境变量）
-const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD,default-channel,channel-pln';
+const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'default-channel';
 
 const GET_PRODUCTS = gql`
   query GetProducts($first: Int!, $channel: String!) {

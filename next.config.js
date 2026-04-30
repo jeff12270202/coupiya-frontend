@@ -16,8 +16,10 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'placehold.co',
+        protocol: 'http',
+        hostname: '43.166.132.156',
+        port: '9002',
+        pathname: '/saleor-media/**',
       },
       {
         protocol: 'https',

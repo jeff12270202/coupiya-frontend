@@ -1,9 +1,5 @@
 import React from 'react';
 
-/**
- * 安全渲染 Saleor 的 descriptionJson 富文本内容
- * 如果解析失败，返回纯文本字符串，绝不显示 JSON 原文
- */
 const RenderEditorJSON = ({ data }: { data: any }) => {
   // 若数据为空，返回占位符
   if (!data) return <span className="text-gray-400">无描述</span>;

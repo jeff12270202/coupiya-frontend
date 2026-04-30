@@ -1,4 +1,3 @@
-// components/hooks/useCart.ts
 import { useState, useEffect, useCallback } from 'react';
 
 // ---------- 类型定义 ----------

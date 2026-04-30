@@ -10,6 +10,10 @@ const nextConfig = {
         source: '/api/ai/:path*',
         destination: 'https://api.coupiya.com/ai/:path*',
       },
+      {
+        source: '/thumbnail/:path*',
+        destination: 'https://api.coupiya.com/thumbnail/:path*',
+      }
     ];
   },
   images: {

@@ -7,23 +7,30 @@ import { normalizeImageUrl } from '@/lib/utils';
 interface Product {
   id: string;
   name: string;
-  description: string;
+  descriptionJson?: any;        // 改为 JSON 结构
   media: Array<{ url: string }>;
   variants: Array<{
     pricing: {
       price: {
-        gross: {
-          amount: number;
-          currency: string;
-        };
+        gross: { amount: number; currency: string };
       };
     };
   }>;
 }
 
+// 简单提取 EditorJS 文本（或使用 RenderEditorJSON 组件）
+const extractPlainText = (json: any): string => {
+  if (!json?.blocks) return '';
+  return json.blocks
+    .map((block: any) => block.data?.text || '')
+    .join(' ')
+    .slice(0, 60);
+};
+
 export default function RecommendSection() {
   const [recommendations, setRecommendations] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const channel = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'default-channel';
 
   useEffect(() => {
     fetchRecommendations();
@@ -31,7 +38,6 @@ export default function RecommendSection() {
 
   const fetchRecommendations = async () => {
     try {
-      // 尝试调用真实推荐 API（如果未实现，则回退到获取随机商品）
       const response = await fetch('/api/ai/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -44,7 +50,7 @@ export default function RecommendSection() {
         productIds = data.productIds || data.recommendations || [];
       }
 
-      // 如果没有推荐 ID，则获取最新商品作为 fallback
+      // fallback：获取最新商品
       if (productIds.length === 0) {
         const fallbackRes = await fetch('/api/graphql', {
           method: 'POST',
@@ -53,11 +59,21 @@ export default function RecommendSection() {
             query: `
               query GetLatestProducts($first: Int!, $channel: String!) {
                 products(first: $first, channel: $channel) {
-                  edges { node { id name description media { url } variants { pricing { price { gross { amount currency } } } } } }
+                  edges {
+                    node {
+                      id
+                      name
+                      descriptionJson
+                      media { url }
+                      variants {
+                        pricing { price { gross { amount currency } } }
+                      }
+                    }
+                  }
                 }
               }
             `,
-            variables: { first: 4, channel: process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD default-channel channel-pln' },
+            variables: { first: 4, channel },
           }),
         });
         const fallbackData = await fallbackRes.json();
@@ -67,7 +83,7 @@ export default function RecommendSection() {
         return;
       }
 
-      // 根据推荐 ID 获取商品详情
+      // 有推荐 ID，获取商品详情
       const result = await fetch('/api/graphql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -75,11 +91,21 @@ export default function RecommendSection() {
           query: `
             query GetProductsByIds($ids: [ID!]!, $channel: String!) {
               products(filter: { ids: $ids }, channel: $channel, first: 10) {
-                edges { node { id name description media { url } variants { pricing { price { gross { amount currency } } } } } }
+                edges {
+                  node {
+                    id
+                    name
+                    descriptionJson
+                    media { url }
+                    variants {
+                      pricing { price { gross { amount currency } } }
+                    }
+                  }
+                }
               }
             }
           `,
-          variables: { ids: productIds, channel: process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD default-channel channel-pln' },
+          variables: { ids: productIds, channel },
         }),
       });
       const graphqlData = await result.json();
@@ -130,7 +156,9 @@ export default function RecommendSection() {
             <div className="p-5">
               <h3 className="font-serif text-lg font-semibold text-gray-800">{product.name}</h3>
               <p className="text-sm text-gray-500 line-clamp-2 mt-1">
-                {product.description?.replace(/<[^>]*>/g, '').slice(0, 60) || '温润细腻，手工匠心'}
+                {product.descriptionJson
+                  ? extractPlainText(product.descriptionJson)
+                  : '温润细腻，手工匠心'}
               </p>
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xl font-bold text-rose-500">

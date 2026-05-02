@@ -63,10 +63,14 @@ export default function VoiceModal({ onClose }: { onClose: () => void }) {
         recognitionRef.current.interimResults = false;
         recognitionRef.current.lang = 'zh-CN';
 
+        // ✅ 修复：使用可选链和条件判断，避免 "Object is possibly 'undefined'"
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          const text = event.results[0][0].transcript;
-          setTranscript(text);
-          processVoiceCommand(text);
+          const result = event.results?.[0]?.[0];
+          if (result?.transcript) {
+            const text = result.transcript;
+            setTranscript(text);
+            processVoiceCommand(text);
+          }
         };
 
         recognitionRef.current.onerror = () => {

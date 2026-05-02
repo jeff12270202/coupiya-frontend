@@ -10,7 +10,7 @@ const nextConfig = {
         source: '/api/ai/:path*',
         destination: 'https://api.coupiya.com/ai/:path*',
       },
-      // 删除 thumbnail rewrite，因为前端会统一转换为 /media/
+      // 注意：不要添加 /thumbnail rewrite，图片全部由前端 normalizeImageUrl 处理
     ];
   },
   images: {
@@ -20,7 +20,6 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'api.coupiya.com',
       },
-      // 如果还有本地占位图，可以保留 localhost 模式（开发环境）
       {
         protocol: 'http',
         hostname: 'localhost',
@@ -29,3 +28,5 @@ const nextConfig = {
     ],
   },
 };
+
+module.exports = nextConfig;

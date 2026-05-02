@@ -7,24 +7,16 @@ import { normalizeImageUrl } from '@/lib/utils';
 interface Product {
   id: string;
   name: string;
-  descriptionJson?: any;        // 改为 JSON 结构
+  descriptionJson?: any;
   media: Array<{ url: string }>;
   variants: Array<{
-    pricing: {
-      price: {
-        gross: { amount: number; currency: string };
-      };
-    };
+    pricing: { price: { gross: { amount: number; currency: string } } };
   }>;
 }
 
-// 简单提取 EditorJS 文本（或使用 RenderEditorJSON 组件）
 const extractPlainText = (json: any): string => {
   if (!json?.blocks) return '';
-  return json.blocks
-    .map((block: any) => block.data?.text || '')
-    .join(' ')
-    .slice(0, 60);
+  return json.blocks.map((block: any) => block.data?.text || '').join(' ').slice(0, 60);
 };
 
 export default function RecommendSection() {
@@ -50,7 +42,6 @@ export default function RecommendSection() {
         productIds = data.productIds || data.recommendations || [];
       }
 
-      // fallback：获取最新商品
       if (productIds.length === 0) {
         const fallbackRes = await fetch('/api/graphql', {
           method: 'POST',
@@ -65,9 +56,7 @@ export default function RecommendSection() {
                       name
                       descriptionJson
                       media { url }
-                      variants {
-                        pricing { price { gross { amount currency } } }
-                      }
+                      variants { pricing { price { gross { amount currency } } } }
                     }
                   }
                 }
@@ -83,7 +72,6 @@ export default function RecommendSection() {
         return;
       }
 
-      // 有推荐 ID，获取商品详情
       const result = await fetch('/api/graphql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,9 +85,7 @@ export default function RecommendSection() {
                     name
                     descriptionJson
                     media { url }
-                    variants {
-                      pricing { price { gross { amount currency } } }
-                    }
+                    variants { pricing { price { gross { amount currency } } } }
                   }
                 }
               }
@@ -156,9 +142,7 @@ export default function RecommendSection() {
             <div className="p-5">
               <h3 className="font-serif text-lg font-semibold text-gray-800">{product.name}</h3>
               <p className="text-sm text-gray-500 line-clamp-2 mt-1">
-                {product.descriptionJson
-                  ? extractPlainText(product.descriptionJson)
-                  : '温润细腻，手工匠心'}
+                {product.descriptionJson ? extractPlainText(product.descriptionJson) : '温润细腻，手工匠心'}
               </p>
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xl font-bold text-rose-500">
@@ -172,7 +156,6 @@ export default function RecommendSection() {
           </div>
         ))}
       </div>
-
       <div className="text-center mt-10">
         <button className="px-8 py-2 border-2 border-rose-300 text-rose-600 rounded-full hover:bg-rose-50 transition">
           探索更多灵感 →

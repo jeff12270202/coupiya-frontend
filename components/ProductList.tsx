@@ -4,29 +4,8 @@ import { useQuery, gql } from '@apollo/client';
 import Image from 'next/image';
 import Link from 'next/link';
 import RenderEditorJSON from './RenderEditorJSON';
+import { normalizeImageUrl } from '@/lib/utils';  // 导入新函数
 
-interface Product {
-  id: string;
-  name: string;
-  descriptionJson: any;
-  media: Array<{ url: string }>;
-  variants: Array<{
-    pricing: {
-      price: {
-        gross: {
-          amount: number;
-          currency: string;
-        };
-      };
-    };
-  }>;
-}
-
-interface ProductEdge {
-  node: Product;
-}
-
-// 正确渠道名（根据你的 Saleor Dashboard 调整，可使用环境变量）
 const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'default-channel';
 
 const GET_PRODUCTS = gql`
@@ -51,12 +30,6 @@ const GET_PRODUCTS = gql`
   }
 `;
 
-const getImageUrl = (url: string | undefined): string => {
-  if (!url) return '/placeholder.png';
-  if (url.startsWith('http')) return url;
-  return `https://api.coupiya.com${url}`;
-};
-
 export default function ProductList() {
   const { loading, error, data } = useQuery(GET_PRODUCTS, {
     variables: { first: 8, channel: CHANNEL },
@@ -72,11 +45,11 @@ export default function ProductList() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      {(data.products.edges as ProductEdge[]).map(({ node }) => (
+      {data.products.edges.map(({ node }: any) => (
         <div key={node.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col">
           <div className="relative h-64 w-full bg-pink-50">
             <Image
-              src={getImageUrl(node.media[0]?.url)}
+              src={normalizeImageUrl(node.media[0]?.url)}  // 使用新函数
               alt={node.name}
               fill
               className="object-cover"

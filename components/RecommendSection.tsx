@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { normalizeImageUrl } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -19,14 +20,6 @@ interface Product {
     };
   }>;
 }
-
-const getImageUrl = (url: string | undefined) => {
-  if (!url) return 'https://placehold.co/400x300/FDE68A/white?text=陶瓷饰品';
-  if (url.startsWith('http')) return url;
-  return `https://api.coupiya.com${url}`;
-};
-
-const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD default-channel channel-pln';
 
 export default function RecommendSection() {
   const [recommendations, setRecommendations] = useState<Product[]>([]);
@@ -64,7 +57,7 @@ export default function RecommendSection() {
                 }
               }
             `,
-            variables: { first: 4, channel: CHANNEL },
+            variables: { first: 4, channel: process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD default-channel channel-pln' },
           }),
         });
         const fallbackData = await fallbackRes.json();
@@ -86,7 +79,7 @@ export default function RecommendSection() {
               }
             }
           `,
-          variables: { ids: productIds, channel: CHANNEL },
+          variables: { ids: productIds, channel: process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD default-channel channel-pln' },
         }),
       });
       const graphqlData = await result.json();
@@ -127,7 +120,7 @@ export default function RecommendSection() {
           <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group">
             <div className="h-56 overflow-hidden relative bg-amber-50">
               <Image
-                src={getImageUrl(product.media?.[0]?.url)}
+                src={normalizeImageUrl(product.media?.[0]?.url)}
                 alt={product.name}
                 fill
                 className="object-cover group-hover:scale-105 transition duration-500"

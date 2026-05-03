@@ -3,9 +3,10 @@
 import { useQuery, gql } from '@apollo/client';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import RenderEditorJSON from '@/components/RenderEditorJSON';
-import { useCart } from '@/components/hooks/useCart';
 import Link from 'next/link';
+import RenderEditorJSON from '@/components/RenderEditorJSON';
+import { useCart } from '@/lib/useCart';
+import { normalizeImageUrl } from '@/lib/utils';   // ✅ 只保留导入
 
 const GET_PRODUCT = gql`
   query GetProduct($id: ID!, $channel: String!) {
@@ -29,13 +30,8 @@ const GET_PRODUCT = gql`
 
 const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD';
 
-// 辅助函数：将图片 URL 规范化为绝对路径
-function normalizeImageUrl(url: string): string {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const baseUrl = process.env.NEXT_PUBLIC_SALEOR_API_URL?.replace('/graphql/', '') || '';
-  return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
-}
+// ❌ 删除下面的重复函数定义（第 27-30 行）
+// function normalizeImageUrl(url: string): string { ... }
 
 export default function ProductDetail() {
   const { id } = useParams() as { id: string };
@@ -74,11 +70,10 @@ export default function ProductDetail() {
         ← 返回首页
       </Link>
       <div className="grid md:grid-cols-2 gap-12">
-        {/* 图片区 */}
         <div className="bg-rose-50 rounded-2xl overflow-hidden shadow-md">
           {product.media?.[0]?.url && (
             <Image
-              src={normalizeImageUrl(product.media[0].url)}
+              src={normalizeImageUrl(product.media[0].url)}   // ✅ 使用导入的函数
               alt={product.name}
               width={600}
               height={600}
@@ -86,7 +81,6 @@ export default function ProductDetail() {
             />
           )}
         </div>
-        {/* 信息区 */}
         <div>
           <h1 className="text-4xl font-serif font-bold text-gray-800 mb-3">{product.name}</h1>
           <div className="text-3xl font-bold text-rose-500 mb-6">

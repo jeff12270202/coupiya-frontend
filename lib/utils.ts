@@ -1,8 +1,5 @@
 export const MEDIA_BASE_URL = process.env.NEXT_PUBLIC_MEDIA_BASE_URL || 'https://api.coupiya.com';
 
-/**
- * 将内网图片 URL 转换为公网可访问的 HTTPS URL
- */
 export function normalizeImageUrl(url: string | undefined | null): string {
   if (!url) return `${MEDIA_BASE_URL}/placeholder.png`;
 

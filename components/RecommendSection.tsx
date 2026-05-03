@@ -135,8 +135,6 @@ export default function RecommendSection() {
                 src={normalizeImageUrl(product.media?.[0]?.url)}
                 alt={product.name}
                 fill
-                className="object-cover group-hover:scale-105 transition duration-500"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               />
             </div>
             <div className="p-5">

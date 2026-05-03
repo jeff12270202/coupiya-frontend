@@ -2,6 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
+import { ShoppingCartIcon } from '@heroicons/react/24/outline';
+import CartSidebar from '@/components/CartSidebar';
 import {
   ChatBubbleLeftRightIcon,
   SparklesIcon,
@@ -67,6 +69,7 @@ const AI_FEATURES = [
 export default function Home() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const closeModal = () => setActiveModal(null);
+  const [cartOpen, setCartOpen] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -84,6 +87,10 @@ export default function Home() {
           </button>
         </div>
       </section>
+      <button onClick={() => setCartOpen(true)} className="fixed bottom-4 right-4 bg-rose-500 p-3 rounded-full text-white z-50">
+        <ShoppingCartIcon className="w-6 h-6" />
+      </button>
+      {cartOpen && <CartSidebar onClose={() => setCartOpen(false)} />}
 
       {/* AI 功能卡片区 */}
       <section className="container mx-auto px-4 py-20">

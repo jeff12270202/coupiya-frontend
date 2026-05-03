@@ -10,20 +10,14 @@ const nextConfig = {
         source: '/api/ai/:path*',
         destination: 'https://api.coupiya.com/ai/:path*',
       },
-      // 注意：不要添加 /thumbnail rewrite，图片全部由前端 normalizeImageUrl 处理
     ];
   },
   images: {
-    unoptimized: true,
+    unoptimized: true, // 使用 Next.js 默认优化即可
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'api.coupiya.com',
-      },
-      {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '3000',
       },
     ],
   },

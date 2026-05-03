@@ -29,6 +29,14 @@ const GET_PRODUCT = gql`
 
 const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD';
 
+// 辅助函数：将图片 URL 规范化为绝对路径
+function normalizeImageUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const baseUrl = process.env.NEXT_PUBLIC_SALEOR_API_URL?.replace('/graphql/', '') || '';
+  return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
 export default function ProductDetail() {
   const { id } = useParams() as { id: string };
   const { addItem, loading: cartLoading } = useCart();
@@ -70,7 +78,7 @@ export default function ProductDetail() {
         <div className="bg-rose-50 rounded-2xl overflow-hidden shadow-md">
           {product.media?.[0]?.url && (
             <Image
-              src={product.media[0].url}
+              src={normalizeImageUrl(product.media[0].url)}
               alt={product.name}
               width={600}
               height={600}

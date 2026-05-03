@@ -1,4 +1,3 @@
-// lib/useCart.ts
 import { useState, useEffect, useCallback } from 'react';
 
 interface CartItem {
@@ -36,7 +35,6 @@ export function useCart() {
   const [loading, setLoading] = useState(true);
   const channel = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'default-channel';
 
-  // 加载购物车，返回最新的 cart 或 null
   const loadCart = useCallback(async (token: string): Promise<Cart | null> => {
     const query = `
       query GetCheckout($token: UUID!) {
@@ -120,12 +118,12 @@ export function useCart() {
       });
       const checkout = data.checkoutCreate.checkout;
       if (!checkout) throw new Error(data.checkoutCreate.errors?.[0]?.message);
-      const token = checkout.token; // 此时 token 明确为 string
+      const token = checkout.token;
       localStorage.setItem(CHECKOUT_TOKEN_KEY, token);
       await loadCart(token);
     } else {
       // 已有 checkout，添加行
-      const token = storedToken; // 明确为 string
+      const token = storedToken;
       const mutation = `
         mutation AddToCheckout($checkoutId: ID!, $variantId: ID!, $quantity: Int!) {
           checkoutLinesAdd(

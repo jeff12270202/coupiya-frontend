@@ -4,7 +4,8 @@ import { normalizeImageUrl } from '@/lib/utils';
 import Image from 'next/image';
 
 export default function CartSidebar({ onClose }: { onClose: () => void }) {
-  const { cart, loading, updateQuantity, removeLine, totalItems } = useCart();
+  // 移除 totalItems，只取需要的属性
+  const { cart, loading, updateQuantity, removeLine } = useCart();
 
   if (loading) return <div>加载中...</div>;
   if (!cart || cart.lines.length === 0) return <div>购物车是空的</div>;

@@ -1,4 +1,3 @@
-/** @type {import('tailwindcss').Config} */
 module.exports = {
   // 启用暗色模式（class 策略，通过 .dark 类切换）
   darkMode: 'class',

@@ -1,3 +1,4 @@
+// lib/useCart.ts
 import { useState, useEffect, useCallback } from 'react';
 
 interface CartItem {
@@ -8,6 +9,13 @@ interface CartItem {
   price: number;
   currency: string;
   imageUrl?: string;
+}
+
+interface Cart {
+  id: string;
+  lines: CartItem[];
+  totalPrice: number;
+  currency: string;
 }
 
 const CHECKOUT_TOKEN_KEY = 'saleorCheckoutToken';
@@ -24,16 +32,12 @@ const saleorFetch = async <T = any>(query: string, variables?: any): Promise<T> 
 };
 
 export function useCart() {
-  const [cart, setCart] = useState<{
-    id: string;
-    lines: CartItem[];
-    totalPrice: number;
-    currency: string;
-  } | null>(null);
+  const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const channel = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'default-channel';
 
-  const loadCart = useCallback(async (token: string) => {
+  // 加载购物车，返回最新的 cart 或 null
+  const loadCart = useCallback(async (token: string): Promise<Cart | null> => {
     const query = `
       query GetCheckout($token: UUID!) {
         checkout(token: $token) {
@@ -56,7 +60,7 @@ export function useCart() {
     try {
       const data = await saleorFetch<{ checkout: any }>(query, { token });
       if (data.checkout) {
-        const lines = data.checkout.lines.map((line: any) => ({
+        const lines: CartItem[] = data.checkout.lines.map((line: any) => ({
           id: line.id,
           variantId: line.variant.id,
           quantity: line.quantity,
@@ -65,18 +69,22 @@ export function useCart() {
           currency: line.totalPrice.gross.currency,
           imageUrl: line.variant.media?.[0]?.url,
         }));
-        setCart({
+        const newCart: Cart = {
           id: data.checkout.id,
           lines,
           totalPrice: data.checkout.totalPrice.gross.amount,
           currency: data.checkout.totalPrice.gross.currency,
-        });
+        };
+        setCart(newCart);
+        return newCart;
       } else {
         setCart(null);
+        return null;
       }
     } catch (err) {
       console.error('Failed to load cart', err);
       setCart(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -92,8 +100,8 @@ export function useCart() {
   }, [loadCart]);
 
   const addItem = async (variantId: string, quantity = 1) => {
-    let token = localStorage.getItem(CHECKOUT_TOKEN_KEY);
-    if (!token) {
+    const storedToken = localStorage.getItem(CHECKOUT_TOKEN_KEY);
+    if (!storedToken) {
       // 创建新 checkout
       const mutation = `
         mutation CreateCheckout($channel: String!, $variantId: ID!, $quantity: Int!) {
@@ -112,11 +120,12 @@ export function useCart() {
       });
       const checkout = data.checkoutCreate.checkout;
       if (!checkout) throw new Error(data.checkoutCreate.errors?.[0]?.message);
-      token = checkout.token;
+      const token = checkout.token; // 此时 token 明确为 string
       localStorage.setItem(CHECKOUT_TOKEN_KEY, token);
       await loadCart(token);
     } else {
       // 已有 checkout，添加行
+      const token = storedToken; // 明确为 string
       const mutation = `
         mutation AddToCheckout($checkoutId: ID!, $variantId: ID!, $quantity: Int!) {
           checkoutLinesAdd(
@@ -128,12 +137,10 @@ export function useCart() {
           }
         }
       `;
-      // 先加载 cart 确保有 id
-      await loadCart(token);
-      const checkoutIdFromCart = cart?.id;
-      if (!checkoutIdFromCart) throw new Error('Checkout ID not found');
+      const latestCart = await loadCart(token);
+      if (!latestCart) throw new Error('Cart not available');
       await saleorFetch(mutation, {
-        checkoutId: checkoutIdFromCart,
+        checkoutId: latestCart.id,
         variantId,
         quantity,
       });
@@ -144,6 +151,8 @@ export function useCart() {
   const updateQuantity = async (lineId: string, quantity: number) => {
     const token = localStorage.getItem(CHECKOUT_TOKEN_KEY);
     if (!token) return;
+    const latestCart = await loadCart(token);
+    if (!latestCart) return;
     const mutation = `
       mutation UpdateLine($checkoutId: ID!, $lineId: ID!, $quantity: Int!) {
         checkoutLinesUpdate(
@@ -154,15 +163,19 @@ export function useCart() {
         }
       }
     `;
-    const checkoutId = cart?.id;
-    if (!checkoutId) return;
-    await saleorFetch(mutation, { checkoutId, lineId, quantity });
+    await saleorFetch(mutation, {
+      checkoutId: latestCart.id,
+      lineId,
+      quantity,
+    });
     await loadCart(token);
   };
 
   const removeLine = async (lineId: string) => {
     const token = localStorage.getItem(CHECKOUT_TOKEN_KEY);
     if (!token) return;
+    const latestCart = await loadCart(token);
+    if (!latestCart) return;
     const mutation = `
       mutation RemoveLine($checkoutId: ID!, $lineId: ID!) {
         checkoutLineDelete(id: $checkoutId, lineId: $lineId) {
@@ -170,9 +183,10 @@ export function useCart() {
         }
       }
     `;
-    const checkoutId = cart?.id;
-    if (!checkoutId) return;
-    await saleorFetch(mutation, { checkoutId, lineId });
+    await saleorFetch(mutation, {
+      checkoutId: latestCart.id,
+      lineId,
+    });
     await loadCart(token);
   };
 

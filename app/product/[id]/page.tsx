@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import RenderEditorJSON from '@/components/RenderEditorJSON';
-import { useCart } from '@/lib/useCart';
+import { useCart } from '@/lib/useCart2';
 import { normalizeImageUrl } from '@/lib/utils';   // ✅ 只保留导入
 
 const GET_PRODUCT = gql`

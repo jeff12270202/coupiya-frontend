@@ -1,5 +1,5 @@
 'use client';
-import { useCart } from '@/lib/useCart';
+import { useCart } from '@/lib/useCart2';
 
 export default function AddToCartButton({ variantId }: { variantId: string }) {
   const { addItem, loading } = useCart();

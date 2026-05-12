@@ -1,5 +1,5 @@
 'use client';
-import { useCart } from '@/lib/useCart2';
+import { useCart } from '@/hooks/useCart';
 import { normalizeImageUrl } from '@/lib/utils';
 import Image from 'next/image';
 

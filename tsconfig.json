@@ -48,6 +48,9 @@
         "./*"
       ]
     },
+
+    "ignoreDeprecations": "6.0",
+    
     // 类型定义
     "types": [
       "node",

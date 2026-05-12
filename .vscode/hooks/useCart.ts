@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { useState, useEffect, useCallback } from 'react';
 
 interface CartLine {
@@ -162,16 +163,65 @@ export function useCart() {
     }
   }, [checkout, channel, loadCheckoutFromToken]);
 
-  // 其他方法如 removeItem, updateQuantity, clearCart 保持不变（保持原样即可）
+  // 移除行
+  const removeLine = useCallback(async (lineId: string) => {
+    if (!checkout) return;
+    const mutation = `
+      mutation RemoveLine($checkoutId: ID!, $lineId: ID!) {
+        checkoutLineDelete(id: $checkoutId, lineId: $lineId) {
+          errors { message }
+        }
+      }
+    `;
+    try {
+      await saleorFetch(mutation, { checkoutId: checkout.id, lineId });
+      await loadCheckoutFromToken(checkout.token);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }, [checkout, loadCheckoutFromToken]);
+
+  // 更新数量
+  const updateQuantity = useCallback(async (lineId: string, quantity: number) => {
+    if (!checkout || quantity < 1) return;
+    const mutation = `
+      mutation UpdateLine($checkoutId: ID!, $lineId: ID!, $quantity: Int!) {
+        checkoutLinesUpdate(
+          id: $checkoutId
+          lines: [{ lineId: $lineId, quantity: $quantity }]
+        ) {
+          errors { message }
+        }
+      }
+    `;
+    try {
+      await saleorFetch(mutation, { checkoutId: checkout.id, lineId, quantity });
+      await loadCheckoutFromToken(checkout.token);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }, [checkout, loadCheckoutFromToken]);
+
+  // 清空购物车
+  const clearCart = useCallback(async () => {
+    if (!checkout) return;
+    for (const line of checkout.lines) {
+      await removeLine(line.id);
+    }
+    removeStoredCheckoutToken();
+    setCheckout(null);
+  }, [checkout, removeLine]);
 
   const totalItems = checkout?.lines.reduce((sum, line) => sum + line.quantity, 0) || 0;
 
   return {
-    cart: checkout,   // ✅ 统一命名为 cart
+    cart: checkout,
     loading,
     error,
     addItem,
-    // 其他方法保留
+    removeLine,
+    updateQuantity,
+    clearCart,
     totalItems,
     totalPrice: checkout?.totalPrice || 0,
     currency: checkout?.currency || 'CNY',

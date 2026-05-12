@@ -1,6 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 // 定义博客文章的类型
 interface WordPressPost {
   id: number;

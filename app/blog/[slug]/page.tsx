@@ -1,5 +1,7 @@
 import Image from 'next/image';
 
+export const dynamic = 'force-dynamic';
+
 interface WordPressPost {
   id: number;
   slug: string;

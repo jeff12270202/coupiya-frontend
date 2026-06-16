@@ -22,7 +22,7 @@ export default function AIImageModal({ onClose }: { onClose: () => void }) {
 
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/ai/generate', {
+      const response = await fetch('/api/ai/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, style, width: 512, height: 512 }),

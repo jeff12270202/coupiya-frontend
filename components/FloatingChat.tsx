@@ -9,8 +9,8 @@ import {
   PaperClipIcon,
   MicrophoneIcon,
   Cog6ToothIcon,
-  MinimizeIcon,
-  MaximizeIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 
 interface Message {
@@ -222,7 +222,7 @@ export default function FloatingChat() {
               onClick={toggleMinimize}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
             >
-              {isMinimized ? <MaximizeIcon className="w-4 h-4" /> : <MinimizeIcon className="w-4 h-4" />}
+              {isMinimized ? <ArrowUpTrayIcon className="w-4 h-4" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
             </button>
             <button
               onClick={toggleMaximize}

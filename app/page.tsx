@@ -12,6 +12,7 @@ import {
   CameraIcon,
 } from '@heroicons/react/24/outline';
 import RecommendSection from '@/components/RecommendSection';
+import FloatingChat from '@/components/FloatingChat';
 
 const AIChatModal = dynamic(() => import('@/components/AIChatModal'), { ssr: false });
 const AIImageModal = dynamic(() => import('@/components/AIImageModal'), { ssr: false });
@@ -139,6 +140,9 @@ export default function Home() {
           <p className="text-sm">© 2025 瓷间 · 灵韵集 | 以 AI 重塑东方雅物</p>
         </div>
       </footer>
+
+      {/* 浮动对话框 */}
+      <FloatingChat />
     </div>
   );
 }

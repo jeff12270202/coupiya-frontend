@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  const { prompt, style, width = 512, height = 512 } = await req.json();
+  const { prompt, style: _style, width = 512, height = 512 } = await req.json();
   const replicateToken = process.env.REPLICATE_API_TOKEN;
 
   if (!replicateToken) {

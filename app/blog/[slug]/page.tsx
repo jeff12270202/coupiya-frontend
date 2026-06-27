@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import BlogClientWrapper from '@/components/BlogClientWrapper';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,20 +28,22 @@ export default async function PostPage({ params }: { params: { slug: string } })
   if (!post) return <div className="text-center text-red-500">文章未找到</div>;
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <h1 className="text-4xl font-bold mb-4">{post.title.rendered}</h1>
-      <div className="text-gray-500 mb-8">{new Date(post.date).toLocaleDateString('zh-CN')}</div>
-      {post._embedded?.['wp:featuredmedia']?.[0]?.source_url && (
-        <div className="relative w-full h-96 mb-8">
-          <Image
-            src={post._embedded['wp:featuredmedia'][0].source_url}
-            alt={post.title.rendered}
-            fill
-            className="object-cover rounded-lg"
-          />
-        </div>
-      )}
-      <div className="prose prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: post.content.rendered }} />
-    </div>
+    <BlogClientWrapper>
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-4xl font-bold mb-4">{post.title.rendered}</h1>
+        <div className="text-gray-500 mb-8">{new Date(post.date).toLocaleDateString('zh-CN')}</div>
+        {post._embedded?.['wp:featuredmedia']?.[0]?.source_url && (
+          <div className="relative w-full h-96 mb-8">
+            <Image
+              src={post._embedded['wp:featuredmedia'][0].source_url}
+              alt={post.title.rendered}
+              fill
+              className="object-cover rounded-lg"
+            />
+          </div>
+        )}
+        <div className="prose prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: post.content.rendered }} />
+      </div>
+    </BlogClientWrapper>
   );
 }

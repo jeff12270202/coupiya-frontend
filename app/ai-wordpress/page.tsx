@@ -7,6 +7,7 @@ import {
   SparklesIcon,
   LanguageIcon,
 } from '@heroicons/react/24/outline';
+import FloatingChat from '@/components/FloatingChat';
 
 const AIChatModal = dynamic(() => import('@/components/AIChatModal'), { ssr: false });
 const AIImageModal = dynamic(() => import('@/components/AIImageModal'), { ssr: false });
@@ -117,6 +118,9 @@ export default function AIWordPressPage() {
       {activeModal === 'chat' && <AIChatModal onClose={closeModal} />}
       {activeModal === 'image' && <AIImageModal onClose={closeModal} />}
       {activeModal === 'translate' && <TranslateModal onClose={closeModal} />}
+
+      {/* 浮动对话框 */}
+      <FloatingChat />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, history } = await req.json();
+    const { message: _message, history: _history } = await req.json();
 
     // Mock 响应 - 实际项目应替换为真实 AI API
     const mockResponses = [

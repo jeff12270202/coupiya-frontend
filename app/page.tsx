@@ -94,7 +94,7 @@ export default function Home() {
 
       {/* AI 功能卡片区 */}
       <section className="container mx-auto px-4 py-20">
-        <h2 className="text-4xl font-serif font-bold text-center mb-4 text-gray-800">AI 智趣工坊</h2>
+        <h2 className="text-4xl font-serif font-bold text-center mb-4 text-gray-800">AI-WORDPRESS创作工坊</h2>
         <p className="text-center text-gray-500 mb-12 max-w-2xl mx-auto">用 AI 创作你的陶瓷纹样，让购物充满想象力</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {AI_FEATURES.map((feature) => (

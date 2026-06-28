@@ -1,6 +1,8 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+export const dynamic = 'force-dynamic';
+
+import NextDynamic from 'next/dynamic';
 import { useState } from 'react';
 import { ShoppingCartIcon } from '@heroicons/react/24/outline';
 import CartSidebar from '@/components/CartSidebar';
@@ -14,12 +16,12 @@ import {
 import RecommendSection from '@/components/RecommendSection';
 import FloatingChat from '@/components/FloatingChat';
 
-const AIChatModal = dynamic(() => import('@/components/AIChatModal'), { ssr: false });
-const AIImageModal = dynamic(() => import('@/components/AIImageModal'), { ssr: false });
-const TranslateModal = dynamic(() => import('@/components/TranslateModal'), { ssr: false });
-const VoiceModal = dynamic(() => import('@/components/VoiceModal'), { ssr: false });
-const ARModal = dynamic(() => import('@/components/ARModal'), { ssr: false });
-const ProductList = dynamic(() => import('@/components/ProductList'), {
+const AIChatModal = NextDynamic(() => import('@/components/AIChatModal'), { ssr: false });
+const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
+const TranslateModal = NextDynamic(() => import('@/components/TranslateModal'), { ssr: false });
+const VoiceModal = NextDynamic(() => import('@/components/VoiceModal'), { ssr: false });
+const ARModal = NextDynamic(() => import('@/components/ARModal'), { ssr: false });
+const ProductList = NextDynamic(() => import('@/components/ProductList'), {
   ssr: false,
   loading: () => <div className="text-center text-rose-400">✨ 正在为您甄选陶瓷美物 ✨</div>,
 });

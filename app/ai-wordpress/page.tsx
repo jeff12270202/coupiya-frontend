@@ -1,7 +1,9 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
+import NextDynamic from 'next/dynamic';
 import {
   ChatBubbleLeftRightIcon,
   SparklesIcon,
@@ -9,9 +11,9 @@ import {
 } from '@heroicons/react/24/outline';
 import FloatingChat from '@/components/FloatingChat';
 
-const AIChatModal = dynamic(() => import('@/components/AIChatModal'), { ssr: false });
-const AIImageModal = dynamic(() => import('@/components/AIImageModal'), { ssr: false });
-const TranslateModal = dynamic(() => import('@/components/TranslateModal'), { ssr: false });
+const AIChatModal = NextDynamic(() => import('@/components/AIChatModal'), { ssr: false });
+const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
+const TranslateModal = NextDynamic(() => import('@/components/TranslateModal'), { ssr: false });
 
 const SERVICES = [
   {

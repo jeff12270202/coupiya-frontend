@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, limit = 4 } = await req.json();
+    const body = await req.json();
+    const { userId, limit = 4 } = body;
 
     // Mock 推荐响应 - 返回空数组以便使用 fallback
     return NextResponse.json({

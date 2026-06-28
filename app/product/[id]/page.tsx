@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useQuery, gql } from '@apollo/client';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';

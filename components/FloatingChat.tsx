@@ -100,6 +100,7 @@ export default function FloatingChat() {
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
+    return undefined;
   }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
 
   // 开始拖动
@@ -142,7 +143,7 @@ export default function FloatingChat() {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.reply || MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)],
+        content: data.reply ?? MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)],
         timestamp: new Date(),
       };
 
@@ -151,7 +152,7 @@ export default function FloatingChat() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)],
+        content: MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)] ?? '抱歉，出现了一些问题，请稍后重试。',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { command, type } = await req.json();
+    const { command, type: _type } = await req.json();
 
     // Mock 语音命令响应
     let response = '';

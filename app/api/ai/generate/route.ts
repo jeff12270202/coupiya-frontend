@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { prompt, style, width = 512, height = 512 } = body;
+    const { prompt, width = 512, height = 512 } = body;
 
     // Mock 图像生成响应 - 使用 placeholder
     const imageUrl = `https://placehold.co/${width}x${height}/f472b6/white?text=${encodeURIComponent(prompt.slice(0, 20))}`;

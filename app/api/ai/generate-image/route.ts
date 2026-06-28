@@ -2,49 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { prompt, style: _style, width = 512, height = 512 } = body;
-  const replicateToken = process.env.REPLICATE_API_TOKEN;
+  const { prompt, width = 512, height = 512 } = body;
+  const minimaxApiKey = process.env.MINIMAX_API_KEY;
 
-  if (!replicateToken) {
-    // Fallback to placeholder when no token
+  // 如果没有 API Key，返回模拟数据
+  if (!minimaxApiKey) {
     const imageUrl = `https://placehold.co/${width}x${height}/f472b6/white?text=${encodeURIComponent(prompt?.slice(0, 20) || 'AI Image')}`;
     return NextResponse.json({ imageUrl, success: true });
   }
 
   try {
-    const response = await fetch('https://api.replicate.com/v1/predictions', {
+    // 调用 MINIMAX 文生图 API
+    const response = await fetch('https://api.minimax.chat/v1/image_generation', {
       method: 'POST',
       headers: {
-        'Authorization': `Token ${replicateToken}`,
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${minimaxApiKey}`,
       },
       body: JSON.stringify({
-        version: "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
-        input: { prompt, negative_prompt: "ugly, blurry", width, height },
+        model: 'image-01',
+        prompt: prompt || '一幅美丽的陶瓷饰品图片',
+        width: Math.min(1024, Math.max(512, width)),
+        height: Math.min(1024, Math.max(512, height)),
+        n: 1,
       }),
     });
 
-    const data = await response.json();
-    // 轮询获取结果（简化版，实际需要 async polling）
-    if (data.urls && data.urls.get) {
-      let result;
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 1000));
-        const pollRes = await fetch(data.urls.get, { headers: { 'Authorization': `Token ${replicateToken}` } });
-        const pollData = await pollRes.json();
-        if (pollData.status === 'succeeded') {
-          result = pollData.output;
-          break;
-        }
+    if (response.ok) {
+      const data = await response.json();
+      if (data.data && data.data[0] && data.data[0].url) {
+        return NextResponse.json({
+          imageUrl: data.data[0].url,
+          success: true,
+        });
       }
-      if (result) return NextResponse.json({ imageUrl: Array.isArray(result) ? result[0] : result, success: true });
     }
-    // Fallback
-    const imageUrl = `https://placehold.co/${width}x${height}/f472b6/white?text=${encodeURIComponent(prompt?.slice(0, 20) || 'AI Image')}`;
-    return NextResponse.json({ imageUrl, success: true });
   } catch (error) {
-    console.error('Image generation error:', error);
-    const imageUrl = `https://placehold.co/${width}x${height}/f472b6/white?text=${encodeURIComponent(prompt?.slice(0, 20) || 'AI Image')}`;
-    return NextResponse.json({ imageUrl, success: true });
+    console.error('MINIMAX API error:', error);
   }
+
+  // 如果失败，返回模拟数据
+  const imageUrl = `https://placehold.co/${width}x${height}/f472b6/white?text=${encodeURIComponent(prompt?.slice(0, 20) || 'AI Image')}`;
+  return NextResponse.json({ imageUrl, success: true });
 }

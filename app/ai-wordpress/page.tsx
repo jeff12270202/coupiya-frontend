@@ -10,6 +10,7 @@ import {
   LanguageIcon,
 } from '@heroicons/react/24/outline';
 import FloatingChat from '@/components/FloatingChat';
+import ClientOnly from '@/components/ClientOnly';
 
 const AIChatModal = NextDynamic(() => import('@/components/AIChatModal'), { ssr: false });
 const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
@@ -122,7 +123,9 @@ export default function AIWordPressPage() {
       {activeModal === 'translate' && <TranslateModal onClose={closeModal} />}
 
       {/* 浮动对话框 */}
-      <FloatingChat />
+      <ClientOnly>
+        <FloatingChat />
+      </ClientOnly>
     </div>
   );
 }

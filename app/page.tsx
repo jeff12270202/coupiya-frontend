@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import RecommendSection from '@/components/RecommendSection';
 import FloatingChat from '@/components/FloatingChat';
+import ClientOnly from '@/components/ClientOnly';
 
 const AIChatModal = NextDynamic(() => import('@/components/AIChatModal'), { ssr: false });
 const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
@@ -78,7 +79,6 @@ export default function Home() {
     <div className="min-h-screen">
       {/* Hero 区 — 陶瓷主题 */}
       <section className="relative bg-gradient-to-br from-rose-100 via-white to-amber-50 py-24 overflow-hidden">
-        <div className="absolute inset-0 opacity-20 bg-[url('/ceramic-pattern.svg')] bg-repeat"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="inline-block mb-4 px-4 py-1 bg-white/50 rounded-full backdrop-blur-sm text-rose-500 text-sm">
             ✨ 东方陶瓷 · AI 灵感 ✨
@@ -144,7 +144,9 @@ export default function Home() {
       </footer>
 
       {/* 浮动对话框 */}
-      <FloatingChat />
+      <ClientOnly>
+        <FloatingChat />
+      </ClientOnly>
     </div>
   );
 }

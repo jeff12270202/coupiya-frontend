@@ -32,7 +32,7 @@ const GET_PRODUCTS = gql`
 
 export default function ProductList() {
   const { loading, error, data } = useQuery(GET_PRODUCTS, {
-    variables: { first: 8, channel: CHANNEL },
+    variables: { first: 100, channel: CHANNEL },
     fetchPolicy: 'network-only',
   });
 
@@ -49,7 +49,11 @@ export default function ProductList() {
         <div key={node.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col">
           <div className="relative h-64 w-full bg-pink-50">
             <Image
-              src={normalizeImageUrl(node.media[0]?.url)}  // 使用新函数
+              src={
+                node.media[0]?.url?.startsWith('http')
+                  ? node.media[0].url
+                  : `https://media.coupiya.com${node.media[0]?.url || ''}`
+              }    
               alt={node.name}
               fill 
             />

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { normalizeImageUrl } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -128,31 +127,40 @@ export default function RecommendSection() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7">
-        {recommendations.map((product) => (
-          <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group">
-            <div className="h-56 overflow-hidden relative bg-amber-50">
-              <Image
-                src={normalizeImageUrl(product.media?.[0]?.url)}
-                alt={product.name}
-                fill
-              />
-            </div>
-            <div className="p-5">
-              <h3 className="font-serif text-lg font-semibold text-gray-800">{product.name}</h3>
-              <p className="text-sm text-gray-500 line-clamp-2 mt-1">
-                {product.descriptionJson ? extractPlainText(product.descriptionJson) : '温润细腻，手工匠心'}
-              </p>
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-xl font-bold text-rose-500">
-                  {product.variants?.[0]?.pricing?.price?.gross.amount || '0'} {product.variants?.[0]?.pricing?.price?.gross.currency || 'CNY'}
-                </span>
-                <button className="px-4 py-2 text-sm bg-rose-500 text-white rounded-full hover:bg-rose-600 transition shadow-sm">
-                  心动收藏
-                </button>
+        {recommendations.map((product) => {
+          // ✅ 关键修复：在这里声明 imageUrl，或者直接在 JSX 中处理
+          const rawImage = product.media?.[0]?.url;
+          const imageUrl = rawImage?.startsWith('http') 
+            ? rawImage 
+            : `https://media.coupiya.com${rawImage || ''}`;
+
+          return (
+            <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group">
+              <div className="h-56 overflow-hidden relative bg-amber-50">
+                <Image
+                  src={imageUrl || '/placeholder.jpg'}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="p-5">
+                <h3 className="font-serif text-lg font-semibold text-gray-800">{product.name}</h3>
+                <p className="text-sm text-gray-500 line-clamp-2 mt-1">
+                  {product.descriptionJson ? extractPlainText(product.descriptionJson) : '温润细腻，手工匠心'}
+                </p>
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-xl font-bold text-rose-500">
+                    {product.variants?.[0]?.pricing?.price?.gross.amount || '0'} {product.variants?.[0]?.pricing?.price?.gross.currency || 'CNY'}
+                  </span>
+                  <button className="px-4 py-2 text-sm bg-rose-500 text-white rounded-full hover:bg-rose-600 transition shadow-sm">
+                    心动收藏
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="text-center mt-10">
         <button className="px-8 py-2 border-2 border-rose-300 text-rose-600 rounded-full hover:bg-rose-50 transition">

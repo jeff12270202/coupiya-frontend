@@ -132,7 +132,7 @@ export default function AIChat() {
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               placeholder="给 Assistant 发消息 (Enter 发送)"
               rows={1}
               className="w-full bg-transparent px-4 py-3 pr-32 text-gray-900 placeholder-gray-500 resize-none focus:outline-none"

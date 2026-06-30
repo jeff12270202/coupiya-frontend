@@ -21,7 +21,11 @@ interface WordPressPost {
 }
 
 export default async function PostPage({ params }: { params: { slug: string } }) {
+  // ✅ 优化 1：增加 fetch 状态判断，防止接口 502 导致页面直接崩溃
   const res = await fetch(`https://api.coupiya.com/wordpress/wp-json/wp/v2/posts?slug=${params.slug}&_embed`);
+  if (!res.ok) {
+    throw new Error(`获取文章失败，状态码: ${res.status}`);
+  }
   const posts: WordPressPost[] = await res.json();
   const post = posts[0];
 

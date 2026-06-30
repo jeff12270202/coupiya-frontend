@@ -23,9 +23,13 @@ interface WordPressPost {
 }
 
 export default async function BlogPage() {
+  // ✅ 优化：加上错误拦截，防止接口 502 导致页面直接崩溃
   const res = await fetch('https://api.coupiya.com/wordpress/wp-json/wp/v2/posts?_embed', {
     next: { revalidate: 60 },
   });
+  if (!res.ok) {
+    throw new Error(`获取博客列表失败，状态码: ${res.status}`);
+  }
   const posts: WordPressPost[] = await res.json();
 
   return (

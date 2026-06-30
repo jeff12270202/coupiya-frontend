@@ -17,7 +17,15 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'media.coupiya.com',
+      },
+      {
+        protocol: 'https',
         hostname: 'api.coupiya.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'blog.coupiya.com',
       },
     ],
   },

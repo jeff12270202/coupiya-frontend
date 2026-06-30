@@ -8,7 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import RenderEditorJSON from '@/components/RenderEditorJSON';
 import { useCart } from '@/hooks/useCart';
-import { normalizeImageUrl } from '@/lib/utils';   // ✅ 只保留导入
+import { normalizeImageUrl } from '@/lib/utils';
 
 const GET_PRODUCT = gql`
   query GetProduct($id: ID!, $channel: String!) {
@@ -30,13 +30,14 @@ const GET_PRODUCT = gql`
   }
 `;
 
-const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'Channel-USD';
-
-// ❌ 删除下面的重复函数定义（第 27-30 行）
-// function normalizeImageUrl(url: string): string { ... }
+// ⚠️ 直接写死正确的渠道名，防止环境变量读取失效
+const CHANNEL = 'default-channel'; 
 
 export default function ProductDetail() {
-  const { id } = useParams() as { id: string };
+  // ✅ Step 1: 必须先解码 URL 中的 %3D%3D，否则 GraphQL 会报 Invalid ID
+  const rawId = useParams().id as string;
+  const id = decodeURIComponent(rawId);
+
   const { addItem, loading: cartLoading } = useCart();
   const { loading, error, data } = useQuery(GET_PRODUCT, {
     variables: { id, channel: CHANNEL },
@@ -45,6 +46,7 @@ export default function ProductDetail() {
 
   if (loading) return <div className="text-center py-20">加载商品中...</div>;
   if (error) return <div className="text-red-500 text-center py-20">出错：{error.message}</div>;
+  
   const product = data?.product;
   if (!product) return <div className="text-center py-20">商品不存在</div>;
 
@@ -66,6 +68,12 @@ export default function ProductDetail() {
     }
   };
 
+  // ✅ Step 3: 处理图片路径，如果返回的是相对路径，强制拼上 media 域名
+  const rawImageUrl = product.media?.[0]?.url;
+  const imageUrl = rawImageUrl?.startsWith('http') 
+    ? rawImageUrl 
+    : `https://media.coupiya.com${rawImageUrl}`;
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-6xl">
       <Link href="/" className="text-rose-500 hover:underline inline-block mb-6">
@@ -75,7 +83,7 @@ export default function ProductDetail() {
         <div className="bg-rose-50 rounded-2xl overflow-hidden shadow-md">
           {product.media?.[0]?.url && (
             <Image
-              src={normalizeImageUrl(product.media[0].url)}   // ✅ 使用导入的函数
+              src={imageUrl} // ✅ 使用处理过的图片地址
               alt={product.name}
               width={600}
               height={600}

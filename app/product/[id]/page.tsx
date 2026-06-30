@@ -8,7 +8,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import RenderEditorJSON from '@/components/RenderEditorJSON';
 import { useCart } from '@/hooks/useCart';
-import { normalizeImageUrl } from '@/lib/utils';
 
 const GET_PRODUCT = gql`
   query GetProduct($id: ID!, $channel: String!) {

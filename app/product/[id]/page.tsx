@@ -82,7 +82,7 @@ export default function ProductDetail() {
         <div className="bg-rose-50 rounded-2xl overflow-hidden shadow-md">
           {product.media?.[0]?.url && (
             <Image
-              src={imageUrl} // ✅ 使用处理过的图片地址
+              src={`https://media.coupiya.com${product.media[0].url}`}
               alt={product.name}
               width={600}
               height={600}

@@ -1,17 +1,31 @@
+'use client'; // ✅ 必须加上，因为这里用了 JSX 和 DOM 操作
+
 import React from 'react';
 
 const RenderEditorJSON = ({ data }: { data: any }) => {
-  // 若数据为空，返回占位符
+  // 1. 如果数据为空，返回占位符
   if (!data) return <span className="text-gray-400">无描述</span>;
 
-  // 如果 data 是字符串，直接返回（处理纯文本情况）
-  if (typeof data === 'string') return <p>{data}</p>;
+  let parsedData = data;
 
-  // 如果是旧版纯文本字段（例如 description 字段），也可能返回字符串，兼容处理
-  if (data.blocks && Array.isArray(data.blocks)) {
+  // 2. ⚠️ 关键修复：如果是字符串，尝试解析成 JSON 对象！
+  if (typeof data === 'string') {
+    try {
+      parsedData = JSON.parse(data);
+    } catch (e) {
+      // 如果解析失败（说明不是标准JSON），直接把原文字符串当成纯文本输出
+      return <p>{data}</p>;
+    }
+  }
+
+  // 3. 如果是纯字符串（例如旧版 description 字段），直接返回文本
+  if (typeof parsedData === 'string') return <p>{parsedData}</p>;
+
+  // 4. 解析正常的 EditorJS 数据结构
+  if (parsedData.blocks && Array.isArray(parsedData.blocks)) {
     return (
       <div className="editor-content space-y-2">
-        {data.blocks.map((block: any, idx: number) => {
+        {parsedData.blocks.map((block: any, idx: number) => {
           switch (block.type) {
             case 'paragraph':
               return (
@@ -49,7 +63,6 @@ const RenderEditorJSON = ({ data }: { data: any }) => {
                 />
               );
             default:
-              // 未知类型，简单显示文本内容（如果有）
               const text = block.data?.text || block.data?.content || '';
               return text ? <p key={idx} dangerouslySetInnerHTML={{ __html: text }} /> : null;
           }
@@ -58,9 +71,9 @@ const RenderEditorJSON = ({ data }: { data: any }) => {
     );
   }
 
-  // 如果既不是 blocks 结构也不是字符串，尝试输出安全的纯文本（避免显示 JSON）
-  if (data.text) {
-    return <p dangerouslySetInnerHTML={{ __html: data.text }} />;
+  // 5. 最终兜底
+  if (parsedData.text) {
+    return <p dangerouslySetInnerHTML={{ __html: parsedData.text }} />;
   }
   return <span className="text-gray-400">（描述格式暂不支持）</span>;
 };

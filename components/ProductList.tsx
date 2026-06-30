@@ -4,7 +4,6 @@ import { useQuery, gql } from '@apollo/client';
 import Image from 'next/image';
 import Link from 'next/link';
 import RenderEditorJSON from './RenderEditorJSON';
-import { normalizeImageUrl } from '@/lib/utils';  // 导入新函数
 
 const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'default-channel';
 

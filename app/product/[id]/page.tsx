@@ -68,10 +68,10 @@ export default function ProductDetail() {
   };
 
   // ✅ Step 3: 处理图片路径，如果返回的是相对路径，强制拼上 media 域名
-  const rawImageUrl = product.media?.[0]?.url;
-  const imageUrl = rawImageUrl?.startsWith('http') 
-    ? rawImageUrl 
-    : `https://media.coupiya.com${rawImageUrl}`;
+  //const rawImageUrl = product.media?.[0]?.url;
+  //const imageUrl = rawImageUrl?.startsWith('http') 
+  //  ? rawImageUrl 
+  //  : `https://media.coupiya.com${rawImageUrl}`;
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-6xl">

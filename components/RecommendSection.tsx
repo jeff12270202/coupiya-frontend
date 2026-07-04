@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { normalizeImageUrl } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -132,7 +133,7 @@ export default function RecommendSection() {
           const rawImage = product.media?.[0]?.url;
           const imageUrl = rawImage?.startsWith('http') 
             ? rawImage 
-            : `https://media.coupiya.com${rawImage || ''}`;
+            : normalizeImageUrl(rawImage);
 
           return (
             <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group">

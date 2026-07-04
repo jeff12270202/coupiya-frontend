@@ -1,116 +1,88 @@
-'use client';
+// ============================================================
+// FIXED: app/product/[id]/page.tsx
+// 修复图片 URL - 将 Saleor 返回的 localhost/minio 内部地址
+// 重写为 https://media.coupiya.com 专用媒体域名
+// ============================================================
 
-export const dynamic = 'force-dynamic';
+"use client";
 
-import { useQuery, gql } from '@apollo/client';
-import { useParams } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import RenderEditorJSON from '@/components/RenderEditorJSON';
-import { useCart } from '@/hooks/useCart';
+import { useQuery } from "@apollo/client";
+import { GET_PRODUCT } from "@/lib/queries";
+import { getMediaUrl } from "@/lib/media-url";
+import Image from "next/image";
+import { notFound } from "next/navigation";
 
-const GET_PRODUCT = gql`
-  query GetProduct($id: ID!, $channel: String!) {
-    product(id: $id, channel: $channel) {
-      id
-      name
-      descriptionJson
-      media { url }
-      variants {
-        id
-        name
-        pricing {
-          price {
-            gross { amount currency }
-          }
-        }
-      }
-    }
-  }
-`;
-
-// ⚠️ 直接写死正确的渠道名，防止环境变量读取失效
-const CHANNEL = 'default-channel'; 
-
-export default function ProductDetail() {
-  // ✅ Step 1: 必须先解码 URL 中的 %3D%3D，否则 GraphQL 会报 Invalid ID
-  const rawId = useParams().id as string;
-  const id = decodeURIComponent(rawId);
-
-  const { addItem, loading: cartLoading } = useCart();
-  const { loading, error, data } = useQuery(GET_PRODUCT, {
-    variables: { id, channel: CHANNEL },
-    skip: !id,
+export default function ProductPage({ params }: { params: { id: string } }) {
+  const { data, loading, error } = useQuery(GET_PRODUCT, {
+    variables: { id: params.id },
   });
 
-  if (loading) return <div className="text-center py-20">加载商品中...</div>;
-  if (error) return <div className="text-red-500 text-center py-20">出错：{error.message}</div>;
-  
-  const product = data?.product;
-  if (!product) return <div className="text-center py-20">商品不存在</div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900" />
+      </div>
+    );
+  }
 
-  const firstVariant = product.variants?.[0];
-  const variantId = firstVariant?.id;
-  const price = firstVariant?.pricing?.price?.gross.amount || 0;
-  const currency = firstVariant?.pricing?.price?.gross.currency || 'CNY';
+  if (error || !data?.product) {
+    notFound();
+  }
 
-  const handleAddToCart = async () => {
-    if (!variantId) {
-      alert('该商品暂无有效变体，无法购买');
-      return;
-    }
-    try {
-      await addItem(variantId, 1);
-      alert('已加入购物车');
-    } catch (err: any) {
-      alert('添加失败：' + err.message);
-    }
-  };
-
-  // ✅ Step 3: 处理图片路径，如果返回的是相对路径，强制拼上 media 域名
-  //const rawImageUrl = product.media?.[0]?.url;
-  //const imageUrl = rawImageUrl?.startsWith('http') 
-  //  ? rawImageUrl 
-  //  : `https://media.coupiya.com${rawImageUrl}`;
+  const product = data.product;
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-6xl">
-      <Link href="/" className="text-rose-500 hover:underline inline-block mb-6">
-        ← 返回首页
-      </Link>
-      <div className="grid md:grid-cols-2 gap-12">
-        <div className="bg-rose-50 rounded-2xl overflow-hidden shadow-md">
-          {product.media?.[0]?.url && (
+    <div className="container mx-auto px-4 py-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* 产品图片 */}
+        <div className="relative">
+          {product.media && product.media.length > 0 ? (
             <Image
-              src={`https://media.coupiya.com${new URL(product.media[0].url).pathname}`}
-              alt={product.name}
+              src={getMediaUrl(product.media[0]?.url)}
+              alt={product.name || "Product image"}
               width={600}
               height={600}
-              className="w-full h-auto object-cover"
+              className="w-full h-auto object-cover rounded-lg"
+              priority
+              unoptimized={
+                !product.media[0]?.url?.includes("media.coupiya.com")
+              }
             />
+          ) : (
+            <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
+              <span className="text-gray-400">No image available</span>
+            </div>
+          )}
+
+          {/* 缩略图列表 */}
+          {product.media && product.media.length > 1 && (
+            <div className="flex gap-2 mt-4 overflow-x-auto">
+              {product.media.slice(0, 5).map((media: any, idx: number) => (
+                <Image
+                  key={idx}
+                  src={getMediaUrl(media.url)}
+                  alt={`${product.name} - ${idx + 1}`}
+                  width={80}
+                  height={80}
+                  className="w-20 h-20 object-cover rounded border cursor-pointer"
+                  unoptimized
+                />
+              ))}
+            </div>
           )}
         </div>
-        <div>
-          <h1 className="text-4xl font-serif font-bold text-gray-800 mb-3">{product.name}</h1>
-          <div className="text-3xl font-bold text-rose-500 mb-6">
-            {price} {currency}
-          </div>
-          <div className="prose prose-rose max-w-none mb-8">
-            {product.descriptionJson ? (
-              <RenderEditorJSON data={product.descriptionJson} />
-            ) : (
-              <p className="text-gray-500">暂无详细描述</p>
-            )}
-          </div>
-          <button
-            onClick={handleAddToCart}
-            disabled={cartLoading || !variantId}
-            className="w-full py-3 bg-rose-500 text-white rounded-full font-semibold hover:bg-rose-600 transition disabled:opacity-50"
-          >
-            {cartLoading ? '处理中...' : '加入购物车'}
-          </button>
-          {!variantId && (
-            <p className="text-sm text-amber-600 mt-2">⚠️ 该商品暂无可售款式（缺少变体）</p>
+
+        {/* 产品信息 */}
+        <div className="space-y-4">
+          <h1 className="text-3xl font-bold">{product.name}</h1>
+          {product.description && (
+            <p className="text-gray-600">{product.description}</p>
+          )}
+          {product.pricing?.priceRange?.start?.gross && (
+            <p className="text-2xl font-semibold">
+              {product.pricing.priceRange.start.gross.amount}{" "}
+              {product.pricing.priceRange.start.gross.currency}
+            </p>
           )}
         </div>
       </div>

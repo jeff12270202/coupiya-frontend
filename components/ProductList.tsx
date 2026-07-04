@@ -4,6 +4,7 @@ import { useQuery, gql } from '@apollo/client';
 import Image from 'next/image';
 import Link from 'next/link';
 import RenderEditorJSON from './RenderEditorJSON';
+import { normalizeImageUrl } from '@/lib/utils';
 
 const CHANNEL = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'default-channel';
 
@@ -51,7 +52,7 @@ export default function ProductList() {
               src={
                 node.media[0]?.url?.startsWith('http')
                   ? node.media[0].url
-                  : `https://media.coupiya.com${node.media[0]?.url || ''}`
+                  : normalizeImageUrl(node.media[0]?.url)
               }    
               alt={node.name}
               fill 

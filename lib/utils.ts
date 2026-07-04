@@ -4,7 +4,10 @@ export function normalizeImageUrl(url: string | undefined | null): string {
   if (!url) return `${MEDIA_BASE_URL}/placeholder.png`;
 
   // 已经正确 → 直接返回
-  if (url.startsWith('https://api.coupiya.com/media/')) return url;
+  if (url.startsWith(`${MEDIA_BASE_URL}/`)) return url;
+
+  // nginx proxy media domain
+  if (url.startsWith('https://media.coupiya.com/')) return url;
 
   // 替换 MinIO 内网地址
   if (url.includes('43.166.132.156:9002')) {
@@ -13,7 +16,7 @@ export function normalizeImageUrl(url: string | undefined | null): string {
 
   // 替换 localhost 地址（开发环境）
   if (url.includes('localhost:8000')) {
-    return url.replace(/http:\/\/localhost:8000/, MEDIA_BASE_URL);
+    return url.replace(/https?:\/\/localhost:8000/, MEDIA_BASE_URL);
   }
 
   // 处理相对路径

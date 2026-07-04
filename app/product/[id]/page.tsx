@@ -13,8 +13,10 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 
 export default function ProductPage({ params }: { params: { id: string } }) {
+  const decodedId = decodeURIComponent(params.id);
+
   const { data, loading, error } = useQuery(GET_PRODUCT, {
-    variables: { id: params.id },
+    variables: { id: decodedId },
   });
 
   if (loading) {

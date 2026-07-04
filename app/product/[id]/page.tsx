@@ -7,6 +7,7 @@
 "use client";
 
 import { useQuery } from "@apollo/client";
+import { GET_PRODUCT } from "@/lib/queries";
 import { getMediaUrl } from "@/lib/media-url";
 import Image from "next/image";
 import { notFound } from "next/navigation";

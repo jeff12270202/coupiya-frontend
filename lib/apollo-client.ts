@@ -64,7 +64,7 @@ const client = new ApolloClient({
         fields: {
           products: {
             // 合并分页数据
-            merge(existing, incoming) {
+            merge(_existing, incoming) {
               return incoming;
             },
           },

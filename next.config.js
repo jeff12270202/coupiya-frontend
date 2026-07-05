@@ -37,7 +37,12 @@ const nextConfig = {
         port: "",
         pathname: "/**",
       },
-      { protocol: 'https', hostname: 'image.pollinations.ai' },
+      {
+        protocol: 'https',
+        hostname: 'image.pollinations.ai',
+        port: '',
+        pathname: '/**',
+      },
     ],
     // 如果 Saleor 返回的 URL 已经被正确重写，不需要 unoptimized
     // 但如果你需要展示未优化的图片（比如开发阶段），可以设置:

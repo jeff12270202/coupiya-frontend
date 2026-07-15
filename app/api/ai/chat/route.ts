@@ -20,14 +20,10 @@ export async function POST(req: NextRequest) {
     ];
 
     // =========================================================================
-    // 🔥 关键配置区：从 .env.local 读取基础 URL，后缀在代码里写死！
+    // 🔥 关键修正：完全遵顀用户 .env.local 里的完整路径，绝不私自拼接！
+    // 用户已在 .env.local 里配置了：HERMES_CHAT_ENDPOINT=https://ai.coupiya.com/v1/chat/completions
     // =========================================================================
-    const HERMES_BASE_URL = process.env.HERMES_BASE_URL || 'https://ai.coupiya.com';
-    
-    // ⚠️ 这里明确写死了后缀。如果您确认 Hermes 不是用 /v1/chat/completions，
-    // 例如它是用 /chat 或 /api/generate，请直接把下方这行改成您真实的路径。
-    const HERMES_ENDPOINT = `${HERMES_BASE_URL}/v1/chat/completions`;
-    // =========================================================================
+    const HERMES_CHAT_ENDPOINT = process.env.HERMES_CHAT_ENDPOINT || 'https://ai.coupiya.com/v1/chat/completions';
 
     // 转发前端的 Authorization 头部（直接透传，不写死任何密钥）
     const forwardHeaders: Record<string, string> = {
@@ -39,9 +35,9 @@ export async function POST(req: NextRequest) {
       forwardHeaders['Authorization'] = authHeader;
     }
 
-    // ----- 首选：通过写死的完整 Hermes 地址请求 DeepSeek -----
+    // ----- 首选：通过完整的 Hermes 地址请求 DeepSeek -----
     try {
-      const hermesResponse = await fetch(HERMES_ENDPOINT, {
+      const hermesResponse = await fetch(HERMES_CHAT_ENDPOINT, {
         method: 'POST',
         headers: forwardHeaders,
         body: JSON.stringify({

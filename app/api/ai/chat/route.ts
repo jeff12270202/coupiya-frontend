@@ -20,12 +20,15 @@ export async function POST(req: NextRequest) {
     ];
 
     // =========================================================================
-    // 🔥 关键修正：完全遵顀用户 .env.local 里的完整路径，绝不私自拼接！
-    // 用户已在 .env.local 里配置了：HERMES_CHAT_ENDPOINT=https://ai.coupiya.com/v1/chat/completions
+    // 🔥 核心修复：直连 VM100119 Hermes 内网 IP，绕过腾讯云 Nginx
+    //    Nginx 会强制覆盖 Authorization → Basic Auth，导致 Hermes 收到错误凭证
+    //    因此必须走 ZeroTier 内网直连：10.136.131.232:8081
     // =========================================================================
-    const HERMES_CHAT_ENDPOINT = process.env.HERMES_CHAT_ENDPOINT || 'https://ai.coupiya.com/v1/chat/completions';
+    const HERMES_CHAT_ENDPOINT =
+      process.env.HERMES_CHAT_ENDPOINT ||
+      'http://10.136.131.232:8081/v1/chat/completions';
 
-    // 转发前端的 Authorization 头部（直接透传，不写死任何密钥）
+    // Authorization：优先透传前端 Bearer Token，若无则使用服务端 DEEPSEEK_API_KEY
     const forwardHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -33,6 +36,8 @@ export async function POST(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
     if (authHeader) {
       forwardHeaders['Authorization'] = authHeader;
+    } else if (process.env.DEEPSEEK_API_KEY) {
+      forwardHeaders['Authorization'] = `Bearer ${process.env.DEEPSEEK_API_KEY}`;
     }
 
     // ----- 首选：通过完整的 Hermes 地址请求 DeepSeek -----

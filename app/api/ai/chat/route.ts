@@ -33,13 +33,17 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
     };
 
-    const authHeader = req.headers.get('authorization');
-    if (authHeader) {
-      forwardHeaders['Authorization'] = authHeader;
-    } else if (process.env.DEEPSEEK_API_KEY) {
-      forwardHeaders['Authorization'] = `Bearer ${process.env.DEEPSEEK_API_KEY}`;
+    // 这一条是核心！因为我们刚刚在 hermes-agent 导入了这把钥匙！
+    if (process.env.HERMES_API_KEY) {
+      forwardHeaders['Authorization'] = `Bearer ${process.env.HERMES_API_KEY}`;
+    } else {
+      // 兜底逻辑（如果没有配置，尝试使用前端传过来的 header）
+      const authHeader = req.headers.get('authorization');
+      if (authHeader) {
+        forwardHeaders['Authorization'] = authHeader;
+      }
     }
-
+    
     // ----- 首选：通过完整的 Hermes 地址请求 DeepSeek -----
     try {
       const hermesResponse = await fetch(HERMES_CHAT_ENDPOINT, {

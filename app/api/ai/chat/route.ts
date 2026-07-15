@@ -3,67 +3,91 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, history = [] } = body;
+    const { message, history = [], model = 'deepseek-chat' } = body;
 
-    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-4687263053374011a56101c4cbf4c5dd';
-
-    // 构建消息历史
+    // ✅ 构建消息历史 (延续您的设计)
     const messages = [
       {
         role: 'system',
-        content: '你是瓷韵 AI 助手，专门帮助用户推荐陶瓷饰品、解答产品问题。你友善、专业，对中国传统陶瓷文化有深入了解。'
+        content:
+          '你是瓷韵 AI 助手，专门帮助用户推荐陶瓷饰品、解答产品问题。你友善、专业，对中国传统陶瓷文化有深入了解。',
       },
       ...history,
       {
         role: 'user',
-        content: message
-      }
+        content: message,
+      },
     ];
 
-    try {
-      // 调用 DeepSeek API
-      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 2000
-        })
-      });
+    // ✅ 转发前端的 Authorization 头部（直接透传，不写死任何密钥）
+    const forwardHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
 
-      if (response.ok) {
-        const data = await response.json();
-        return NextResponse.json({
-          reply: data.choices[0].message.content,
-          success: true
-        });
-      } else {
-        // 如果 API 调用失败，使用 Mock 响应
-        throw new Error('API call failed');
-      }
-    } catch (apiError) {
-      console.warn('Falling back to mock response due to:', apiError);
-      // Mock 响应作为后备
-      const mockResponses = [
-        '你好！我是瓷韵 AI 助手，很高兴为你服务！我可以帮你推荐陶瓷饰品、解答产品问题。',
-        '感谢你的咨询！这款陶瓷手链采用传统工艺制作，温润细腻，非常适合日常佩戴。',
-        '关于这个问题，让我为你详细解答...我们的陶瓷饰品都经过严格质量检测。',
-        '好的，我理解你的需求！让我为你推荐几款适合的陶瓷饰品。',
-        '这是一个很好的问题！我们的产品支持全球配送，通常 3-7 天可以送达。'
-      ];
+    const authHeader = req.headers.get('authorization');
+    if (authHeader) {
+      forwardHeaders['Authorization'] = authHeader;
+    }
 
-      const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+    // =========================================================================
+    // 🔥 重点修改区：直接从 .env.local 读取完整路径，不再进行任何拼接！
+    // =========================================================================
+    const HERMES_CHAT_ENDPOINT = process.env.HERMES_CHAT_ENDPOINT || '';
 
+    // 如果没有配置端点，直接返回 Mock 而不是抛出 500，保证系统稳定
+    if (!HERMES_CHAT_ENDPOINT) {
+      console.warn('环境变量 HERMES_CHAT_ENDPOINT 未配置，使用 Mock 响应');
       return NextResponse.json({
-        reply: randomResponse,
-        success: true
+        reply: '系统正在连接 AI 中（请检查环境变量配置），我是瓷韵 AI 助手，很高兴为您服务！',
+        success: true,
       });
     }
+    // =========================================================================
+
+    // ----- 首选：通过完整的 HERMES 地址请求 DeepSeek -----
+    try {
+      const hermesResponse = await fetch(HERMES_CHAT_ENDPOINT, {
+        method: 'POST',
+        headers: forwardHeaders,
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.7,
+          max_tokens: 2000,
+        }),
+      });
+
+      if (hermesResponse.ok) {
+        const data = await hermesResponse.json();
+        return NextResponse.json({
+          reply: data.choices?.[0]?.message?.content ?? '（Hermes 返回空内容）',
+          success: true,
+        });
+      }
+
+      console.warn(
+        `Hermes endpoint returned ${hermesResponse.status}: ${await hermesResponse.text().catch(() => '')}`
+      );
+    } catch (hermesError) {
+      console.warn('Hermes gateway unreachable, falling back:', hermesError);
+    }
+
+    // ----- 兜底：Mock 响应，保证前端不崩溃 -----
+    const mockResponses = [
+      '你好！我是瓷韵 AI 助手，很高兴为你服务！我可以帮你推荐陶瓷饰品、解答产品问题。',
+      '感谢你的咨询！这款陶瓷手链采用传统工艺制作，温润细腻，非常适合日常佩戴。',
+      '关于这个问题，让我为你详细解答...我们的陶瓷饰品都经过严格质量检测。',
+      '好的，我理解你的需求！让我为你推荐几款适合的陶瓷饰品。',
+      '这是一个很好的问题！我们的产品支持全球配送，通常 3-7 天可以送达。',
+    ];
+
+    const randomResponse =
+      mockResponses[Math.floor(Math.random() * mockResponses.length)];
+
+    return NextResponse.json({
+      reply: randomResponse,
+      success: true,
+    });
   } catch (error) {
     console.error('Chat API error:', error);
     return NextResponse.json(

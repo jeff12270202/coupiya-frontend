@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { message, history = [], model = 'deepseek-chat' } = body;
 
-    // ✅ 构建消息历史 (延续您的设计)
+    // 构建消息历史
     const messages = [
       {
         role: 'system',
@@ -19,7 +19,17 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    // ✅ 转发前端的 Authorization 头部（直接透传，不写死任何密钥）
+    // =========================================================================
+    // 🔥 关键配置区：从 .env.local 读取基础 URL，后缀在代码里写死！
+    // =========================================================================
+    const HERMES_BASE_URL = process.env.HERMES_BASE_URL || 'https://ai.coupiya.com';
+    
+    // ⚠️ 这里明确写死了后缀。如果您确认 Hermes 不是用 /v1/chat/completions，
+    // 例如它是用 /chat 或 /api/generate，请直接把下方这行改成您真实的路径。
+    const HERMES_ENDPOINT = `${HERMES_BASE_URL}/v1/chat/completions`;
+    // =========================================================================
+
+    // 转发前端的 Authorization 头部（直接透传，不写死任何密钥）
     const forwardHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -29,24 +39,9 @@ export async function POST(req: NextRequest) {
       forwardHeaders['Authorization'] = authHeader;
     }
 
-    // =========================================================================
-    // 🔥 重点修改区：直接从 .env.local 读取完整路径，不再进行任何拼接！
-    // =========================================================================
-    const HERMES_CHAT_ENDPOINT = process.env.HERMES_CHAT_ENDPOINT || '';
-
-    // 如果没有配置端点，直接返回 Mock 而不是抛出 500，保证系统稳定
-    if (!HERMES_CHAT_ENDPOINT) {
-      console.warn('环境变量 HERMES_CHAT_ENDPOINT 未配置，使用 Mock 响应');
-      return NextResponse.json({
-        reply: '系统正在连接 AI 中（请检查环境变量配置），我是瓷韵 AI 助手，很高兴为您服务！',
-        success: true,
-      });
-    }
-    // =========================================================================
-
-    // ----- 首选：通过完整的 HERMES 地址请求 DeepSeek -----
+    // ----- 首选：通过写死的完整 Hermes 地址请求 DeepSeek -----
     try {
-      const hermesResponse = await fetch(HERMES_CHAT_ENDPOINT, {
+      const hermesResponse = await fetch(HERMES_ENDPOINT, {
         method: 'POST',
         headers: forwardHeaders,
         body: JSON.stringify({

@@ -31,12 +31,28 @@ export async function POST(req: NextRequest) {
     }
 
     const blob = await response.blob();
-    // Vercel 环境下，将生成的视频 blob 转为 base64 供前端预览
-    const buffer = await blob.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString('base64');
-    const videoUrl = `data:video/mp4;base64,${base64}`;
 
-    return NextResponse.json({ videoUrl, success: true });
+    // =========================================================================
+    // 🔥 性能修复：不再返回 base64（会导致 Vercel 内存溢出），
+    //    而是上传到 WordPress 媒体库 / MinIO，返回 CDN URL
+    // =========================================================================
+    try {
+      const { uploadToWordPress } = await import('@/lib/wp-upload');
+      const fileName = `ai-video-${Date.now()}.mp4`;
+      const result = await uploadToWordPress(blob, fileName, 'video/mp4');
+      return NextResponse.json({
+        videoUrl: result.url,
+        mediaId: result.id,
+        success: true,
+      });
+    } catch (uploadError) {
+      console.error('WordPress upload failed, using placeholder:', uploadError);
+      return NextResponse.json({
+        videoUrl: 'https://media.coupiya.com/placeholder-video.mp4',
+        success: false,
+        message: '视频已生成但上传存储失败，请稍后重试',
+      });
+    }
   } catch (error) {
     console.error('Video generation error:', error);
     return NextResponse.json(

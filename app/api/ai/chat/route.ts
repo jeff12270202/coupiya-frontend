@@ -3,16 +3,32 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, history = [], model = 'deepseek-chat' } = body;
+    const { message, history = [], model: rawModel } = body;
 
-    // 构建消息历史
+    // =========================================================================
+    // 🔥 模型映射：前端可能传 DeepSeek-R1/DeepSeek-V3 等显示名，
+    //    必须映射为 Hermes 认可的 deepseek-chat，否则 400 "Unable to parse query"
+    // =========================================================================
+    const modelMap: Record<string, string> = {
+      'DeepSeek-R1': 'deepseek-chat',
+      'DeepSeek-V3': 'deepseek-chat',
+      'deepseek-chat': 'deepseek-chat',
+      'deepseek-r1': 'deepseek-chat',
+      'deepseek-v3': 'deepseek-chat',
+    };
+    const model = modelMap[rawModel] || 'deepseek-chat';
+
+    // 构建消息历史 — 只保留 role/content，剔除前端附加的 id/timestamp
+    const cleanHistory = (history as Array<{ role: string; content: string }>).map(
+      ({ role, content }) => ({ role, content })
+    );
     const messages = [
       {
         role: 'system',
         content:
           '你是瓷韵 AI 助手，专门帮助用户推荐陶瓷饰品、解答产品问题。你友善、专业，对中国传统陶瓷文化有深入了解。',
       },
-      ...history,
+      ...cleanHistory,
       {
         role: 'user',
         content: message,

@@ -25,5 +25,10 @@
   }
 
   const data = await response.json();
-  return data.id; // 返回媒体 ID，后续可结合 MAS Videos 插件进行挂载
+  // 返回 WordPress 媒体对象的完整信息
+  return {
+    id: data.id as number,
+    url: (data.source_url || data.guid?.rendered || '') as string,
+    title: (data.title?.rendered || fileName) as string,
+  };
 }

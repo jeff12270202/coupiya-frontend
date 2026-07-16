@@ -21,6 +21,7 @@ export default function AIChatModal({ onClose }: { onClose: () => void }) {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('DeepSeek-R1');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -48,7 +49,7 @@ export default function AIChatModal({ onClose }: { onClose: () => void }) {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, history: messages }),
+        body: JSON.stringify({ message: input, history: messages, model: selectedModel }),
       });
 
       const data = await response.json();
@@ -170,10 +171,13 @@ export default function AIChatModal({ onClose }: { onClose: () => void }) {
 
             {/* Right Side Controls */}
             <div className="absolute bottom-2 right-3 flex items-center gap-2">
-              <select className="text-xs bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-2 py-1.5 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-rose-300 dark:focus:border-rose-500">
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="text-xs bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-2 py-1.5 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-rose-300 dark:focus:border-rose-500"
+              >
                 <option>DeepSeek-R1</option>
                 <option>DeepSeek-V3</option>
-                <option>Medium</option>
               </select>
               
               <button 

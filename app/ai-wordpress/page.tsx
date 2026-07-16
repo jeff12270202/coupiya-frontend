@@ -8,12 +8,14 @@ import {
   ChatBubbleLeftRightIcon,
   SparklesIcon,
   LanguageIcon,
+  FilmIcon,
 } from '@heroicons/react/24/outline';
 import FloatingChat from '@/components/FloatingChat';
 import ClientOnly from '@/components/ClientOnly';
 
 const AIChatModal = NextDynamic(() => import('@/components/AIChatModal'), { ssr: false });
 const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
+const VideoModal = NextDynamic(() => import('@/components/VideoModal'), { ssr: false });
 const TranslateModal = NextDynamic(() => import('@/components/TranslateModal'), { ssr: false });
 
 const SERVICES = [
@@ -41,6 +43,14 @@ const SERVICES = [
     color: 'from-green-400 to-emerald-500',
     modal: 'translate',
   },
+  {
+    id: 'video',
+    title: 'AI 视频生成',
+    description: '用AI将你的创意转化为精美短视频，展示陶瓷之美。',
+    icon: FilmIcon,
+    color: 'from-blue-400 to-cyan-500',
+    modal: 'video',
+  },
 ];
 
 export default function AIWordPressPage() {
@@ -64,7 +74,7 @@ export default function AIWordPressPage() {
 
       {/* 服务卡片区 */}
       <section className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
           {SERVICES.map((service) => (
             <div
               key={service.id}
@@ -121,6 +131,7 @@ export default function AIWordPressPage() {
       {activeModal === 'chat' && <AIChatModal onClose={closeModal} />}
       {activeModal === 'image' && <AIImageModal onClose={closeModal} />}
       {activeModal === 'translate' && <TranslateModal onClose={closeModal} />}
+      {activeModal === 'video' && <VideoModal onClose={closeModal} />}
 
       {/* 浮动对话框 */}
       <ClientOnly>

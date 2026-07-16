@@ -48,6 +48,7 @@ export default function FloatingChat() {
     },
   ]);
   const [input, setInput] = useState('');
+  const [selectedModel, setSelectedModel] = useState('DeepSeek-R1');
   const [isLoading, setIsLoading] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -136,7 +137,7 @@ export default function FloatingChat() {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, history: messages }),
+        body: JSON.stringify({ message: input, history: messages, model: selectedModel }),
       });
       const data = await res.json();
 
@@ -308,10 +309,13 @@ export default function FloatingChat() {
 
                 {/* 右侧控件 */}
                 <div className="absolute bottom-2 right-2 flex items-center gap-2">
-                  <select className="text-xs bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-none">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="text-xs bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-none"
+                  >
                     <option>DeepSeek-R1</option>
                     <option>DeepSeek-V3</option>
-                    <option>Medium</option>
                   </select>
                   <button
                     onClick={handleSend}

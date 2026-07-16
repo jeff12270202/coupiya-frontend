@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     const HERMES_CHAT_ENDPOINT =
       process.env.HERMES_CHAT_ENDPOINT ||
-      'http://10.136.131.232:8081/v1/chat/completions';
+      'http://10.136.131.232:8082/v1/chat/completions';
 
     // Authorization：优先透传前端 Bearer Token，若无则使用服务端 DEEPSEEK_API_KEY
     const forwardHeaders: Record<string, string> = {

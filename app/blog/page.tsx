@@ -2,8 +2,14 @@
 
 import { useState } from "react";
 import { SparklesIcon, CameraIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
+import NextDynamic from "next/dynamic";
 import FloatingChat from "@/components/FloatingChat";
 import ClientOnly from "@/components/ClientOnly";
+
+// 动态导入真实的模态框组件，防止首屏加载过重
+const AIChatModal = NextDynamic(() => import("@/components/AIChatModal"), { ssr: false });
+const AIImageModal = NextDynamic(() => import("@/components/AIImageModal"), { ssr: false });
+const VideoModal = NextDynamic(() => import("@/components/VideoModal"), { ssr: false });
 
 export default function AIWordpressPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -75,41 +81,16 @@ export default function AIWordpressPage() {
         <p>© 2025 AI-WORDPRESS 创作工坊 · 用 AI 重塑全球影视与创作生态</p>
       </footer>
 
-      {/* 浮动助手及模态框占位 */}
+      {/* 浮动助手及真实的模态框调用 */}
       <ClientOnly>
         <FloatingChat />
       </ClientOnly>
      
-      {/* 模态框占位 */}
-      {activeModal === "image" && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-2xl relative max-w-lg w-full">
-            <button onClick={closeModal} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800">✕</button>
-            <h3 className="text-2xl font-bold mb-4">🎨 AI 图片生成</h3>
-            <p className="text-gray-500 mb-4">这里将接入实际的 AI 图片生成接口 (如 Pollinations 或 Replicate)。</p>
-          </div>
-        </div>
-      )}
-
-      {activeModal === "video" && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-2xl relative max-w-lg w-full">
-            <button onClick={closeModal} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800">✕</button>
-            <h3 className="text-2xl font-bold mb-4">🎬 AI 视频生成</h3>
-            <p className="text-gray-500 mb-4">这里将接入实际的 AI 视频生成接口。</p>
-          </div>
-        </div>
-      )}
-
-      {activeModal === "anime" && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-2xl relative max-w-lg w-full">
-            <button onClick={closeModal} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800">✕</button>
-            <h3 className="text-2xl font-bold mb-4">🎭 AI 动漫工坊</h3>
-            <p className="text-gray-500 mb-4">这里将接入实际的 AI 动漫生成接口。</p>
-          </div>
-        </div>
-      )}
+      {/* 🔥 核心修复：将占位 div 替换为真实的模态框组件！ */}
+      {activeModal === "image" && <AIImageModal onClose={closeModal} />}
+      {activeModal === "video" && <VideoModal onClose={closeModal} />}
+      {/* 由于您说动漫也是独立的工坊，如果还没有独立的动漫模态框，这里暂时沿用 AIChatModal，并在里面用代码判断触发 AI */}
+      {activeModal === "anime" && <AIChatModal onClose={closeModal} />}
     </div>
   );
 }

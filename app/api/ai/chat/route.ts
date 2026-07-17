@@ -11,12 +11,12 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     const modelMap: Record<string, string> = {
       'DeepSeek-R1': 'deepseek/deepseek-r1',
-      'DeepSeek-V3': 'deepseek/deepseek-v3',
+      'DeepSeek-V3': 'deepseek/deepseek-chat',  // Hermes 无 deepseek-v3，统一用 deepseek-chat
       'deepseek-chat': 'deepseek/deepseek-chat',
       'deepseek-r1': 'deepseek/deepseek-r1',
-      'deepseek-v3': 'deepseek/deepseek-v3',
+      'deepseek-v3': 'deepseek/deepseek-chat',  // Hermes 无 v3
     };
-    const model = modelMap[rawModel] || 'deepseek-chat';
+    const model = modelMap[rawModel] || 'deepseek/deepseek-chat';
 
     // 构建消息历史 — 只保留 role/content，剔除前端附加的 id/timestamp
     const cleanHistory = (history as Array<{ role: string; content: string }>).map(
@@ -75,8 +75,10 @@ export async function POST(req: NextRequest) {
 
       if (hermesResponse.ok) {
         const data = await hermesResponse.json();
+        const choice = data.choices?.[0]?.message;
+        const reply = choice?.content || choice?.reasoning || '（Hermes 返回空内容）';
         return NextResponse.json({
-          reply: data.choices?.[0]?.message?.content ?? '（Hermes 返回空内容）',
+          reply,
           success: true,
         });
       }

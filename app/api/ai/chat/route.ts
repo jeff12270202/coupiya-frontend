@@ -10,11 +10,11 @@ export async function POST(req: NextRequest) {
     //    必须映射为 Hermes 认可的 deepseek-chat，否则 400 "Unable to parse query"
     // =========================================================================
     const modelMap: Record<string, string> = {
-      'DeepSeek-R1': 'deepseek-chat',
-      'DeepSeek-V3': 'deepseek-chat',
-      'deepseek-chat': 'deepseek-chat',
-      'deepseek-r1': 'deepseek-chat',
-      'deepseek-v3': 'deepseek-chat',
+      'DeepSeek-R1': 'deepseek/deepseek-r1',
+      'DeepSeek-V3': 'deepseek/deepseek-v3',
+      'deepseek-chat': 'deepseek/deepseek-chat',
+      'deepseek-r1': 'deepseek/deepseek-r1',
+      'deepseek-v3': 'deepseek/deepseek-v3',
     };
     const model = modelMap[rawModel] || 'deepseek-chat';
 

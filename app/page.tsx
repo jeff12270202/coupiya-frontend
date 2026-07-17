@@ -7,7 +7,6 @@ import { useState } from 'react';
 import { ShoppingCartIcon } from '@heroicons/react/24/outline';
 import CartSidebar from '@/components/CartSidebar';
 import {
-  ChatBubbleLeftRightIcon,
   SparklesIcon,
   LanguageIcon,
   MicrophoneIcon,
@@ -17,7 +16,6 @@ import RecommendSection from '@/components/RecommendSection';
 import FloatingChat from '@/components/FloatingChat';
 import ClientOnly from '@/components/ClientOnly';
 
-const AIChatModal = NextDynamic(() => import('@/components/AIChatModal'), { ssr: false });
 const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
 const TranslateModal = NextDynamic(() => import('@/components/TranslateModal'), { ssr: false });
 const VoiceModal = NextDynamic(() => import('@/components/VoiceModal'), { ssr: false });
@@ -28,14 +26,6 @@ const ProductList = NextDynamic(() => import('@/components/ProductList'), {
 });
 
 const AI_FEATURES = [
-  {
-    id: 'chat',
-    title: 'AI 瓷语对话',
-    description: '与购物小助手聊聊，获取专属陶瓷饰品推荐和搭配建议。',
-    icon: ChatBubbleLeftRightIcon,
-    color: 'from-rose-400 to-pink-500',
-    modal: 'chat',
-  },
   {
     id: 'image',
     title: 'AI 纹样创生',
@@ -130,7 +120,6 @@ export default function Home() {
       <RecommendSection />
 
       {/* 模态框 */}
-      {activeModal === 'chat' && <AIChatModal onClose={closeModal} />}
       {activeModal === 'image' && <AIImageModal onClose={closeModal} />}
       {activeModal === 'translate' && <TranslateModal onClose={closeModal} />}
       {activeModal === 'voice' && <VoiceModal onClose={closeModal} />}

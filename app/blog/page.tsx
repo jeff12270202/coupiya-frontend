@@ -7,7 +7,6 @@ import FloatingChat from "@/components/FloatingChat";
 import ClientOnly from "@/components/ClientOnly";
 
 // 动态导入真实的模态框组件，防止首屏加载过重
-const AIChatModal = NextDynamic(() => import("@/components/AIChatModal"), { ssr: false });
 const AIImageModal = NextDynamic(() => import("@/components/AIImageModal"), { ssr: false });
 const VideoModal = NextDynamic(() => import("@/components/VideoModal"), { ssr: false });
 
@@ -90,7 +89,7 @@ export default function AIWordpressPage() {
       {activeModal === "image" && <AIImageModal onClose={closeModal} />}
       {activeModal === "video" && <VideoModal onClose={closeModal} />}
       {/* 由于您说动漫也是独立的工坊，如果还没有独立的动漫模态框，这里暂时沿用 AIChatModal，并在里面用代码判断触发 AI */}
-      {activeModal === "anime" && <AIChatModal onClose={closeModal} />}
+      {activeModal === "anime" && <AIImageModal onClose={closeModal} />}
     </div>
   );
 }

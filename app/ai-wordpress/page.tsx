@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import NextDynamic from 'next/dynamic';
 import {
-  ChatBubbleLeftRightIcon,
   SparklesIcon,
   LanguageIcon,
   FilmIcon,
@@ -13,20 +12,11 @@ import {
 import FloatingChat from '@/components/FloatingChat';
 import ClientOnly from '@/components/ClientOnly';
 
-const AIChatModal = NextDynamic(() => import('@/components/AIChatModal'), { ssr: false });
 const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
 const VideoModal = NextDynamic(() => import('@/components/VideoModal'), { ssr: false });
 const TranslateModal = NextDynamic(() => import('@/components/TranslateModal'), { ssr: false });
 
 const SERVICES = [
-  {
-    id: 'chat',
-    title: 'AI 瓷语对话',
-    description: '与购物小助手聊聊，获取专属陶瓷饰品推荐和搭配建议。',
-    icon: ChatBubbleLeftRightIcon,
-    color: 'from-rose-400 to-pink-500',
-    modal: 'chat',
-  },
   {
     id: 'image',
     title: 'AI 纹样创生',
@@ -128,7 +118,6 @@ export default function AIWordPressPage() {
       </section>
 
       {/* 模态框 */}
-      {activeModal === 'chat' && <AIChatModal onClose={closeModal} />}
       {activeModal === 'image' && <AIImageModal onClose={closeModal} />}
       {activeModal === 'translate' && <TranslateModal onClose={closeModal} />}
       {activeModal === 'video' && <VideoModal onClose={closeModal} />}

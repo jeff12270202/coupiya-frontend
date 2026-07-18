@@ -11,13 +11,30 @@ import {
   Cog6ToothIcon,
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
+  PhotoIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
+
+// ================================================================
+// 附件类型定义
+// ================================================================
+interface Attachment {
+  type: 'image' | 'document';
+  base64?: string;       // 图片 base64 (data:image/...)
+  text?: string;         // 文档文本
+  fileName: string;
+  mimeType: string;
+  previewUrl?: string;   // 图片预览 URL (<=5MB 时用 base64，否则用缩略图)
+  uploading?: boolean;
+  error?: string;
+}
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  attachments?: Attachment[];  // 用户消息可能携带附件
 }
 
 const MOCK_RESPONSES = [
@@ -28,6 +45,9 @@ const MOCK_RESPONSES = [
   '这是一个很好的问题！我们的产品支持全球配送，通常 3-7 天可以送达。',
   '瓷韵·灵境祝您购物愉快！有任何问题请随时告诉我。',
 ];
+
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp';
+const DOC_ACCEPT = '.pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain';
 
 export default function FloatingChat() {
   const [isOpen, setIsOpen] = useState(true);
@@ -43,16 +63,21 @@ export default function FloatingChat() {
     {
       id: '1',
       role: 'assistant',
-      content: '你好！我是瓷韵 AI 助手，很高兴为您服务！',
+      content: '你好！我是瓷韵 AI 助手，很高兴为您服务！\n\n✨ 新功能：点击下方 📎 可以上传图片或文档，我能帮你分析图片内容、解读产品手册哦～',
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState('DeepSeek-R1');
   const [isLoading, setIsLoading] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
 
   // 滚动到底部
   useEffect(() => {
@@ -118,26 +143,144 @@ export default function FloatingChat() {
     setResizeStart({ x: e.clientX, y: e.clientY, w: size.width, h: size.height });
   };
 
+  // ================================================================
+  // 点击附件菜单外部 → 关闭
+  // ================================================================
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        showAttachmentMenu &&
+        attachmentMenuRef.current &&
+        !attachmentMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowAttachmentMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAttachmentMenu]);
+
+  // ================================================================
+  // 文件选择 → 触发上传
+  // ================================================================
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileUpload(file, 'image');
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const handleDocSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileUpload(file, 'document');
+    if (docInputRef.current) docInputRef.current.value = '';
+  };
+
+  const handleFileUpload = async (file: File, category: 'image' | 'document') => {
+    setShowAttachmentMenu(false);
+
+    // 创建临时附件（上传中状态）
+    const tempAtt: Attachment = {
+      type: category,
+      fileName: file.name,
+      mimeType: file.type,
+      previewUrl:
+        category === 'image' ? URL.createObjectURL(file) : undefined,
+      uploading: true,
+    };
+
+    setAttachments((prev) => [...prev, { ...tempAtt }]);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/ai/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setAttachments((prev) =>
+          prev.map((att) => {
+            // 用临时文件名匹配
+            if (att.fileName === file.name && att.uploading) {
+              return {
+                ...att,
+                base64: data.base64,
+                text: data.text,
+                uploading: false,
+                error: undefined,
+              };
+            }
+            return att;
+          })
+        );
+      } else {
+        setAttachments((prev) =>
+          prev.map((att) => {
+            if (att.fileName === file.name && att.uploading) {
+              return { ...att, uploading: false, error: data.error || '上传失败' };
+            }
+            return att;
+          })
+        );
+      }
+    } catch (err) {
+      console.error('文件上传异常:', err);
+      setAttachments((prev) =>
+        prev.map((att) => {
+          if (att.fileName === file.name && att.uploading) {
+            return { ...att, uploading: false, error: '网络异常，上传失败' };
+          }
+          return att;
+        })
+      );
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // ================================================================
   // 发送消息
+  // ================================================================
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    const hasReadyAttachments = attachments.some((a) => !a.uploading && !a.error);
+    if ((!input.trim() && !hasReadyAttachments) || isLoading) return;
+
+    // 收集已上传完成的附件
+    const readyAttachments = attachments.filter((a) => !a.uploading && !a.error);
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: input || '[发送了附件]',
       timestamp: new Date(),
+      attachments: readyAttachments.length > 0 ? [...readyAttachments] : undefined,
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    setAttachments([]);  // 发送后清空附件
     setIsLoading(true);
 
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, history: messages, model: selectedModel }),
+        body: JSON.stringify({
+          message: input || '请分析我上传的内容',
+          history: messages,
+          model: selectedModel,
+          attachments: readyAttachments.map((a) => ({
+            type: a.type,
+            base64: a.base64,
+            text: a.text,
+            fileName: a.fileName,
+          })),
+        }),
       });
       const data = await res.json();
 
@@ -259,7 +402,33 @@ export default function FloatingChat() {
                           : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-tl-sm shadow-md'
                       }`}
                     >
-                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+
+                      {/* 附件预览缩略图 */}
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mt-2 space-y-1 border-t border-white/20 pt-2">
+                          {message.attachments.map((att, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs opacity-90">
+                              {att.type === 'image' ? (
+                                <>
+                                  <PhotoIcon className="w-4 h-4 shrink-0" />
+                                  {att.previewUrl && (
+                                    <img
+                                      src={att.previewUrl}
+                                      alt={att.fileName}
+                                      className="w-10 h-10 rounded object-cover shrink-0"
+                                    />
+                                  )}
+                                </>
+                              ) : (
+                                <DocumentTextIcon className="w-4 h-4 shrink-0" />
+                              )}
+                              <span className="truncate">{att.fileName}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       <p className="text-xs opacity-70 mt-1">
                         {message.timestamp.toLocaleTimeString()}
                       </p>
@@ -283,6 +452,59 @@ export default function FloatingChat() {
 
             {/* 输入区域 */}
             <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+              {/* 附件预览条 */}
+              {attachments.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {attachments.map((att, index) => (
+                    <div
+                      key={index}
+                      className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${
+                        att.error
+                          ? 'bg-red-50 border border-red-200 text-red-600'
+                          : att.uploading
+                          ? 'bg-amber-50 border border-amber-200 text-amber-600 animate-pulse'
+                          : 'bg-rose-50 border border-rose-200 text-rose-600'
+                      }`}
+                    >
+                      {att.type === 'image' ? (
+                        att.previewUrl ? (
+                          <img
+                            src={att.previewUrl}
+                            alt={att.fileName}
+                            className="w-8 h-8 rounded object-cover shrink-0"
+                          />
+                        ) : (
+                          <PhotoIcon className="w-4 h-4 shrink-0" />
+                        )
+                      ) : (
+                        <DocumentTextIcon className="w-4 h-4 shrink-0" />
+                      )}
+                      <span className="max-w-[100px] truncate">{att.fileName}</span>
+                      {att.uploading && (
+                        <span className="text-amber-500">
+                          <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        </span>
+                      )}
+                      {att.error && (
+                        <span className="text-red-500" title={att.error}>⚠️</span>
+                      )}
+                      <button
+                        onClick={() => removeAttachment(index)}
+                        className="ml-1 hover:text-red-800 dark:hover:text-red-300"
+                      >
+                        <XMarkIcon className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 隐藏的文件输入 */}
+              <input ref={imageInputRef} type="file" accept={IMAGE_ACCEPT} onChange={handleImageSelect} className="hidden" />
+              <input ref={docInputRef} type="file" accept={DOC_ACCEPT} onChange={handleDocSelect} className="hidden" />
               <div className="relative bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 focus-within:border-rose-300 dark:focus-within:border-rose-500 focus-within:ring-1 focus-within:ring-rose-300 dark:focus-within:ring-rose-500 transition-all">
                 <textarea
                   value={input}
@@ -296,9 +518,39 @@ export default function FloatingChat() {
 
                 {/* 工具栏 */}
                 <div className="absolute bottom-2 left-2 flex items-center gap-1">
-                  <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                    <PaperClipIcon className="w-4 h-4" />
-                  </button>
+                  {/* 📎 附件按钮 + 弹出菜单 */}
+                  <div className="relative" ref={attachmentMenuRef}>
+                    <button
+                      onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                      className="p-2 text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                      title="添加附件"
+                    >
+                      <PaperClipIcon className="w-4 h-4" />
+                    </button>
+                    {showAttachmentMenu && (
+                      <div className="absolute bottom-10 left-0 bg-white dark:bg-gray-700 rounded-xl shadow-xl border border-gray-200 dark:border-gray-600 py-1 w-44 z-50">
+                        <button
+                          onClick={() => { imageInputRef.current?.click(); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                        >
+                          <PhotoIcon className="w-5 h-5 text-rose-500" />
+                          <span>上传图片</span>
+                        </button>
+                        <button
+                          onClick={() => { docInputRef.current?.click(); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                        >
+                          <DocumentTextIcon className="w-5 h-5 text-rose-500" />
+                          <span>上传文档</span>
+                        </button>
+                        <div className="border-t border-gray-100 dark:border-gray-600 my-1"></div>
+                        <div className="px-4 py-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+                          支持 JPG/PNG/PDF/DOCX/TXT
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors">
                     <MicrophoneIcon className="w-4 h-4" />
                   </button>
@@ -319,7 +571,7 @@ export default function FloatingChat() {
                   </select>
                   <button
                     onClick={handleSend}
-                    disabled={!input.trim() || isLoading}
+                    disabled={(!input.trim() && !attachments.some(a => !a.uploading && !a.error)) || isLoading}
                     className="p-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-lg hover:from-rose-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
                   >
                     <PaperAirplaneIcon className="w-4 h-4" />

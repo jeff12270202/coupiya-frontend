@@ -3,7 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, history = [], model: rawModel } = body;
+    const {
+      message,
+      history = [],
+      model: rawModel,
+      // ===== 多模态字段 =====
+      attachments,    // 附件数组: [{ type: 'image'|'document', base64?, text?, fileName }]
+    } = body;
 
     // =========================================================================
     // 🔥 模型映射：前端可能传 DeepSeek-R1/DeepSeek-V3 等显示名，
@@ -18,20 +24,72 @@ export async function POST(req: NextRequest) {
     };
     const model = modelMap[rawModel] || 'deepseek/deepseek-chat';
 
+    // =========================================================================
+    // 构建多模态 user message content (支持图片 + 文本)
+    // =========================================================================
+    const userContentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+
+    // 文本部分
+    userContentParts.push({
+      type: 'text',
+      text: message || '请分析以下内容',
+    });
+
+    // 图片附件：以 image_url 格式注入
+    let hasImage = false;
+    if (attachments && Array.isArray(attachments)) {
+      for (const att of attachments) {
+        if (att.type === 'image' && att.base64) {
+          userContentParts.push({
+            type: 'image_url',
+            image_url: { url: att.base64 },
+          });
+          hasImage = true;
+        }
+      }
+    }
+
+    // 构建用户消息：有图片时用 array 格式，纯文本时用 string 格式
+    const userMessageContent =
+      userContentParts.length === 1 && userContentParts[0]?.type === 'text'
+        ? userContentParts[0].text
+        : userContentParts;
+
     // 构建消息历史 — 只保留 role/content，剔除前端附加的 id/timestamp
     const cleanHistory = (history as Array<{ role: string; content: string }>).map(
       ({ role, content }) => ({ role, content })
     );
+
+    // =========================================================================
+    // 文档附件处理：将文档文本注入 system prompt 作为上下文
+    // =========================================================================
+    let documentContext = '';
+    if (attachments && Array.isArray(attachments)) {
+      const docs = attachments.filter((a) => a.type === 'document' && a.text);
+      if (docs.length > 0) {
+        documentContext =
+          '\n\n--- 用户上传的文档内容（请基于此内容回答问题）---\n' +
+          docs.map((d, i) => `[文档${i + 1}: ${d.fileName}]\n${d.text}`).join('\n\n') +
+          '\n--- 文档内容结束 ---';
+      }
+    }
+
+    const systemContent =
+      '你是瓷韵 AI 助手，专门帮助用户推荐陶瓷饰品、解答产品问题。你友善、专业，对中国传统陶瓷文化有深入了解。' +
+      (hasImage
+        ? ' 如果用户提供了图片，请分析图片中的内容，结合陶瓷文化给出专业建议。'
+        : '') +
+      documentContext;
+
     const messages = [
       {
         role: 'system',
-        content:
-          '你是瓷韵 AI 助手，专门帮助用户推荐陶瓷饰品、解答产品问题。你友善、专业，对中国传统陶瓷文化有深入了解。',
+        content: systemContent,
       },
       ...cleanHistory,
       {
         role: 'user',
-        content: message,
+        content: userMessageContent as string | Array<{ type: string; text?: string; image_url?: { url: string } }>,
       },
     ];
 

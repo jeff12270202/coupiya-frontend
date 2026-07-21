@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
     const model = modelMap[rawModel] || 'deepseek/deepseek-r1';
 
     // =========================================================================
-    // 2. 【核心升级一】图片预处理：调用 HuggingFace 视觉模型“看图说话”
+    // 2. 【核心升级一】图片预处理：调用 MiniMax-VL 模型“看图说话”
+    //    彻底废除 HuggingFace 代理，只需使用你现有的 MINIMAX_API_KEY！
     // =========================================================================
     let imageDescription = '';
     let hasImage = false;
@@ -31,21 +32,30 @@ export async function POST(req: NextRequest) {
       if (imageAtt) {
         hasImage = true;
         try {
-          // 调用你 Nginx 中配置的 /huggingface 代理，使用 BLIP 做图片内容描述
-          const hfRes = await fetch('https://api.coupiya.com/huggingface/models/Salesforce/blip-image-captioning-base', {
+          // 调用 MiniMax 官方视觉模型接口（无 Nginx 代理依赖）
+          const miniMaxRes = await fetch('https://api.minimax.io/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+              'Authorization': `Bearer ${process.env.MINIMAX_API_KEY}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ inputs: imageAtt.base64 })
+            body: JSON.stringify({
+              model: 'MiniMax-VL', // MiniMax 的通用视觉模型
+              messages: [{
+                role: 'user',
+                content: [
+                  { type: 'text', text: '请用一句话简要描述这张图片的内容，以便我可以向另一个AI系统传达它的关键信息。' },
+                  { type: 'image_url', image_url: { url: imageAtt.base64 } }
+                ]
+              }]
+            })
           });
-          if (hfRes.ok) {
-            const hfData = await hfRes.json();
-            imageDescription = hfData[0]?.generated_text || '（模型未能生成图片描述）';
+          if (miniMaxRes.ok) {
+            const miniMaxData = await miniMaxRes.json();
+            imageDescription = miniMaxData.choices?.[0]?.message?.content || '（MiniMax未能生成描述）';
           }
         } catch (e) {
-          console.error('图像分析服务异常:', e);
+          console.error('MiniMax 图像分析服务异常:', e);
           imageDescription = '（图像分析接口暂时不可用）';
         }
       }
@@ -66,7 +76,7 @@ export async function POST(req: NextRequest) {
     }
 
     // =========================================================================
-    // 4. 构建系统提示词（把图片描述塞进去，DeepSeek 就能“看懂”图片了）
+    // 4. 构建系统提示词（把 MiniMax 生成的描述塞进去，DeepSeek 就能“看懂”图片了）
     // =========================================================================
     const visualAnalysis = hasImage ? `\n\n[AI 图片分析结果]: ${imageDescription}` : '';
     const systemContent =
@@ -80,7 +90,6 @@ export async function POST(req: NextRequest) {
     );
     const userContentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
     userContentParts.push({ type: 'text', text: message || '请分析以下内容' });
-    // 注意：虽然我们不要传 image_url（因为DeepSeek不懂），但为了备用，依然保留了这个逻辑。
     const userMessageContent = userContentParts.length === 1 && userContentParts[0]?.type === 'text'
       ? userContentParts[0].text
       : userContentParts;
@@ -135,7 +144,7 @@ export async function POST(req: NextRequest) {
     };
 
     // =========================================================================
-    // 6. 发送给 Hermes 内网 IP (端口必须改为你刚才配置的 8082)
+    // 6. 发送给 Hermes 内网 IP (端口 8082)
     // =========================================================================
     const HERMES_CHAT_ENDPOINT =
       process.env.HERMES_CHAT_ENDPOINT ||

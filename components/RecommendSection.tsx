@@ -40,6 +40,10 @@ export default function RecommendSection() {
       if (response.ok) {
         const data = await response.json();
         productIds = data.productIds || data.recommendations || [];
+      } else {
+        // 如果是 400 或 500 错误，直接在这里提前抛出，阻止下面的 JSON 解析报错
+        console.warn('推荐接口异常，走普通列表降级:', response.status);
+        throw new Error('推荐接口异常');
       }
 
       if (productIds.length === 0) {

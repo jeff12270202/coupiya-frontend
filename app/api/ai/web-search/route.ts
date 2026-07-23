@@ -5,50 +5,43 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { query } = body;
 
-    if (!query) {
-      return NextResponse.json({ results: '搜索关键词不能为空' });
+    if (!query) return NextResponse.json({ results: '搜索关键词不能为空' });
+
+    // 使用必应公开网页搜索（无需任何 API Key，永久免费！）
+    const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=3`;
+    const searchRes = await fetch(searchUrl, {
+      headers: { 
+        // 伪装成浏览器，防止必应拦截
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' 
+      }
+    });
+
+    if (!searchRes.ok) throw new Error(`搜索服务暂时不可用`);
+
+    const html = await searchRes.text();
+    const results: string[] = [];
+    // 使用正则表达式提取必应网页中的标题和摘要
+    const regex = /<li class="b_algo"(?:[^>]*)>[\s\S]*?<h2><a[^>]*>(.*?)<\/a><\/h2>[\s\S]*?<p>(.*?)<\/p>/gi;
+    let match;
+    while ((match = regex.exec(html)) !== null && results.length < 3) {
+      // ✅ 修复 TS 报错的核心：加上 || '' 防止捕获组为空导致 undefined.replace 报错
+      const title = (match[1] || '').replace(/<[^>]*>/g, '').trim();
+      const snippet = (match[2] || '').replace(/<[^>]*>/g, '').trim();
+      
+      if (title && snippet) {
+        results.push(`[${results.length+1}] ${title}\n摘要：${snippet}`);
+      }
     }
 
-    // 获取客户端语言偏好（实现全球多语言搜索支持）
-    const acceptLanguage = req.headers.get('accept-language') || 'zh-CN';
-    // ✅ 【关键修复】：使用可选链 ?. 和 空值合并运算符 ??，彻底解决 TS 可能为 undefined 的报错
-    const targetLang = acceptLanguage?.split(',')[0]?.split('-')[0] ?? 'zh';
-
-    // ⚠️ 注意：请前往 https://serpapi.com/ 注册并获取免费的 API KEY
-    // 如果没有 SerpApi，你可以换成你其他的搜索引擎或免费聚合搜索 API
-    const serpApiKey = process.env.SERPAPI_API_KEY; 
-    
-    // 构建真实第三方搜索请求
-    const searchUrl = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&hl=${targetLang}&api_key=${serpApiKey}`;
-
-    const searchRes = await fetch(searchUrl);
-    if (!searchRes.ok) {
-      throw new Error(`搜索服务暂时无法访问 (${searchRes.status})`);
-    }
-
-    const searchData = await searchRes.json();
-    
-    // 提取核心搜索结果 (只取前3条纯文本摘要，防止 Token 爆炸)
-    const organicResults = searchData.organic_results || [];
     let resultText = `【关于“${query}”的搜索结果】\n`;
-    
-    if (organicResults.length === 0) {
-      resultText += '未找到相关公开信息。';
-    } else {
-      organicResults.slice(0, 3).forEach((item: any, index: number) => {
-        const title = item.title || '无标题';
-        const snippet = item.snippet || '暂无摘要';
-        resultText += `\n[${index + 1}] ${title}\n摘要：${snippet}\n`;
-      });
-    }
-
+    resultText += results.length === 0 ? '未找到相关公开信息。' : '\n' + results.join('\n\n');
     return NextResponse.json({ results: resultText });
     
   } catch (error: any) {
     console.error('Search API error:', error);
     return NextResponse.json(
       { results: `联网搜索出现异常: ${error.message}` },
-      { status: 200 } // 状态码保持 200，让 AI 来消化这个错误，而不是让前端报错
+      { status: 200 }
     );
   }
 }

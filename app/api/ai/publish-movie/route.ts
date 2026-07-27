@@ -38,6 +38,7 @@ export async function POST(req: Request) {
 
         const mediaData = await mediaRes.json();
         const sourceUrl = mediaData.source_url;
+        const mediaId = mediaData.id; // 拿到上传后的媒体文件 ID
 
         // 3. 构造 MAS Videos 需要的数据源序列化数组结构
         const videoSources = [
@@ -71,6 +72,7 @@ export async function POST(req: Request) {
                 movie_genre: [59],  // 【核心】自动归类到 AI 科幻巨制
                 meta: {
                     "_sources": serializedSources, // 注入准确的序列化源
+                    "_thumbnail_id": mediaId,      // ✅【核心添加】将视频媒体ID设为电影封面！
                     // 如果有 AI 返回的时长，可以加 "_movie_run_time": "300"
                 }
             })

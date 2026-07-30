@@ -1,95 +1,342 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { SparklesIcon, CameraIcon, ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
-import NextDynamic from "next/dynamic";
-import FloatingChat from "@/components/FloatingChat";
-import ClientOnly from "@/components/ClientOnly";
+export const dynamic = 'force-dynamic';
 
-// 动态导入真实的模态框组件，防止首屏加载过重
-const AIImageModal = NextDynamic(() => import("@/components/AIImageModal"), { ssr: false });
-const VideoModal = NextDynamic(() => import("@/components/VideoModal"), { ssr: false });
+import { useState, useEffect, useCallback } from 'react';
+import NextDynamic from 'next/dynamic';
+import Image from 'next/image'; // ✅ 这里被正确使用了，黄色警告将消失
+import Link from 'next/link';
+import {
+  SparklesIcon,
+  LanguageIcon,
+  FilmIcon,
+} from '@heroicons/react/24/outline';
+import FloatingChat from '@/components/FloatingChat';
+import ClientOnly from '@/components/ClientOnly';
 
-export default function AIWordpressPage() {
+// 动态导入模态框
+const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
+const VideoModal = NextDynamic(() => import('@/components/VideoModal'), { ssr: false });
+const TranslateModal = NextDynamic(() => import('@/components/TranslateModal'), { ssr: false });
+
+// --------------------------------------------------------
+// 1. AI 卡片
+// --------------------------------------------------------
+const SERVICES = [
+  {
+    id: 'image',
+    title: 'AI 纹样创生',
+    description: '输入灵感，生成独一无二的陶瓷花纹/饰品设计图。',
+    icon: SparklesIcon,
+    color: 'from-purple-400 to-pink-400',
+    modal: 'image',
+  },
+  {
+    id: 'translate',
+    title: '全球雅集翻译',
+    description: '打破语言界限，与全球陶瓷爱好者交流。',
+    icon: LanguageIcon,
+    color: 'from-green-400 to-emerald-500',
+    modal: 'translate',
+  },
+  {
+    id: 'video',
+    title: 'AI 视频生成',
+    description: '用AI将你的创意转化为精美短视频，展示陶瓷之美。',
+    icon: FilmIcon,
+    color: 'from-blue-400 to-cyan-500',
+    modal: 'video',
+  },
+];
+
+// --------------------------------------------------------
+// 2. 数据结构定义
+// --------------------------------------------------------
+interface MovieData {
+  id: number;
+  title: { rendered: string };
+  link: string;
+  _embedded?: {
+    'wp:featuredmedia'?: Array<{ source_url: string }>;
+  };
+}
+
+interface PostData {
+  id: number;
+  slug: string;
+  title: { rendered: string };
+  date: string;
+  excerpt: { rendered: string };
+  _embedded?: {
+    'wp:featuredmedia'?: Array<{ source_url: string }>;
+  };
+}
+
+export default function BlogPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const closeModal = () => setActiveModal(null);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50">
-      {/* Hero 区 — 纯 AI 主题 */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="inline-block mb-4 px-4 py-1 bg-white/50 rounded-full backdrop-blur-sm text-purple-600 text-sm font-medium shadow-sm">
-            ✨ AI 驱动 · 全球顶级创作工坊 ✨
+  const [movies, setMovies] = useState<MovieData[]>([]);
+  const [loadingMovies, setLoadingMovies] = useState(false);
+  const [moviePage, setMoviePage] = useState(1);
+  const [hasMoreMovies, setHasMoreMovies] = useState(true);
+  const [initialMoviesLoading, setInitialMoviesLoading] = useState(true);
+
+  const [posts, setPosts] = useState<PostData[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+
+  const fetchMovies = useCallback(async (pageNum: number, append = false) => {
+    if (loadingMovies) return;
+    setLoadingMovies(true);
+    try {
+      const res = await fetch(
+        `https://blog.coupiya.com/wp-json/wp/v2/movie?page=${pageNum}&per_page=12&_embed`
+      );
+      if (!res.ok) throw new Error('Failed to fetch movies');
+      const data = await res.json();
+      if (data.length === 0) {
+        setHasMoreMovies(false);
+      } else {
+        setMovies((prev) => (append ? [...prev, ...data] : data));
+      }
+    } catch (error) {
+      console.error('🎬 拉取全球 AI 影视数据失败:', error);
+    } finally {
+      setLoadingMovies(false);
+      setInitialMoviesLoading(false);
+    }
+  }, [loadingMovies]);
+
+  const fetchPosts = useCallback(async () => {
+    setLoadingPosts(true);
+    try {
+      const res = await fetch(
+        `https://blog.coupiya.com/wp-json/wp/v2/posts?per_page=5&_embed`
+      );
+      if (!res.ok) throw new Error('Failed to fetch posts');
+      const data = await res.json();
+      setPosts(data);
+    } catch (error) {
+      console.error('📝 拉取灵感日志失败:', error);
+    } finally {
+      setLoadingPosts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMovies(1, false);
+    fetchPosts();
+  }, [fetchMovies, fetchPosts]);
+
+  const handleLoadMoreMovies = () => {
+    if (hasMoreMovies && !loadingMovies) {
+      const nextPage = moviePage + 1;
+      setMoviePage(nextPage);
+      fetchMovies(nextPage, true);
+    }
+  };
+
+  // ======================== 电影卡片组件 ========================
+  const MovieCard = ({ movie }: { movie: MovieData }) => (
+    <div className="group relative bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+      {/* 外层加了 relative，所以内部 Image 组件可以用 fill 铺满 */}
+      <div className="relative aspect-[2/3] overflow-hidden bg-gray-200">
+        <Image
+          src={movie._embedded?.['wp:featuredmedia']?.[0]?.source_url || 'https://placehold.co/300x450/222/fff?text=AI+Movie'}
+          alt={movie.title.rendered}
+          fill
+          className="object-cover transition-transform duration-500 group-hover:scale-105 group-hover:brightness-75"
+        />
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center text-black shadow-lg">
+            ▶
           </div>
-          <h1 className="text-5xl font-serif font-bold text-gray-800 mb-4">AI-WORDPRESS 创作工坊</h1>
+        </div>
+      </div>
+      <div className="p-3">
+        <h4 className="font-bold text-gray-800 text-sm truncate">{movie.title.rendered}</h4>
+        <div className="flex justify-between items-center mt-2 text-[10px] text-gray-500">
+          <span className="flex items-center gap-1">⭐ 9.0 <span className="text-gray-400 text-[8px]">AI</span></span>
+          <span>12 分钟</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ======================== 灵感日志卡片组件 ========================
+  const PostCard = ({ post }: { post: PostData }) => (
+    <Link href={`/blog/${post.slug}`} className="block group">
+      <div className="flex flex-col md:flex-row gap-4 py-6 border-b border-gray-100 hover:bg-gray-50 transition-colors p-4 rounded-xl">
+        {post._embedded?.['wp:featuredmedia']?.[0]?.source_url && (
+          <div className="relative w-full md:w-48 h-32 flex-shrink-0 rounded-lg overflow-hidden">
+            <Image
+              src={post._embedded['wp:featuredmedia'][0].source_url}
+              alt={post.title.rendered}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          </div>
+        )}
+        <div className="flex-1 flex flex-col justify-center">
+          <h3 className="text-xl font-semibold text-gray-800 group-hover:text-purple-600 transition-colors">
+            {post.title.rendered}
+          </h3>
+          <div 
+            className="text-sm text-gray-500 line-clamp-2 mt-1"
+            dangerouslySetInnerHTML={{ __html: post.excerpt.rendered }} 
+          />
+          <div className="text-xs text-gray-400 mt-2">
+            {new Date(post.date).toLocaleDateString('zh-CN')}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-amber-50 pb-20">
+      
+      {/* 区域1：主标题与 UGC 极客创作入口 */}
+      <section className="relative py-24 overflow-hidden text-center">
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="inline-block mb-4 px-4 py-1 bg-white/50 rounded-full backdrop-blur-sm text-purple-600 text-sm font-semibold">
+            🌍 全球顶级创作生态
+          </div>
+          <h1 className="text-5xl font-serif font-bold text-gray-800 mb-4 tracking-wide">
+            全球AI 流媒影视共享
+          </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            为全球创作者提供顶尖的 AI 图片、视频、动漫生成服务，一键搭建属于你的影视生态系统。
+            上传你的灵感、创作你的影视。极客空间提供 5GB 专属云盘，创作即全球发布。
+          </p>
+          
+          <div className="flex flex-col items-center mt-6 mb-10">
+            <a 
+              href="【请将这里替换为您在 Cloud Studio 工作空间分享的公开链接】" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xl rounded-full shadow-2xl hover:scale-105 transition-transform flex items-center gap-3"
+            >
+              <span className="text-2xl">🚀</span> 极速 AI 极客创作空间 (Cloud Studio)
+            </a>
+            <p className="text-gray-500 text-sm mt-3 text-center">内置 5GB 专属云盘 · 创作即全球发布</p>
+          </div>
+        </div>
+      </section>
+
+      {/* 区域2：AI 创作三大功能卡片 */}
+      <section className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {SERVICES.map((service) => (
+            <div
+              key={service.id}
+              className="group bg-white rounded-2xl shadow-lg cursor-pointer hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-2 border-gray-100 hover:border-purple-200"
+              onClick={() => setActiveModal(service.modal)}
+            >
+              <div className="p-10 text-center">
+                <div className={`w-20 h-20 mx-auto rounded-2xl bg-gradient-to-r ${service.color} flex items-center justify-center mb-6 shadow-xl`}>
+                  <service.icon className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold mb-4 text-gray-800">{service.title}</h3>
+                <p className="text-gray-600 mb-8 leading-relaxed">{service.description}</p>
+                <div className="inline-flex items-center gap-2 text-purple-600 font-semibold group-hover:gap-3 transition-all">
+                  <span>立即体验</span>
+                  <span>→</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 区域3：全球顶级 AI 影视流媒区 */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-serif font-bold text-gray-800 mb-4 tracking-wider flex items-center justify-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-teal-500 inline-block"></span>
+            WE ARE THE WORLD AI 影视
+          </h2>
+          <p className="text-gray-500 text-sm tracking-wide">
+            海量 AI 影视持续创作，为全球每个角落的你，呈现视听震撼
           </p>
         </div>
+
+        {initialMoviesLoading ? (
+          <div className="text-center py-20 text-gray-400 text-xl">🌍 正在召唤全球 AI 影视巨作...</div>
+        ) : movies.length === 0 ? (
+          <div className="text-center py-20 text-gray-400">暂无 AI 影视作品，请等候后台自动生成。</div>
+        ) : (
+          <>
+            {movies.length > 0 && (
+              <div className="max-w-6xl mx-auto mb-16 relative group rounded-2xl overflow-hidden shadow-2xl bg-gray-900">
+                <Image 
+                  src={movies[0]!._embedded?.['wp:featuredmedia']?.[0]?.source_url || '/placeholder-movie.jpg'} 
+                  alt={movies[0]!.title.rendered} 
+                  fill
+                  className="object-cover opacity-80 group-hover:opacity-70 transition-opacity"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                <div className="absolute bottom-10 left-10 text-white z-10">
+                  <span className="bg-purple-600 text-xs px-2 py-1 rounded-md mb-2 inline-block">🔥 最新 AI 热映</span>
+                  <h2 className="text-3xl md:text-4xl font-bold">{movies[0]!.title.rendered}</h2>
+                  <p className="text-gray-300 mt-2 line-clamp-1">一场跨越宇宙的宏大 AI 叙事...</p>
+                  <button className="mt-4 bg-white text-black px-6 py-2 rounded-full font-semibold hover:bg-gray-200 transition">立即观看 →</button>
+                </div>
+              </div>
+            )}
+
+            <div className="max-w-6xl mx-auto">
+              <h3 className="text-2xl font-bold mb-6 border-l-4 border-purple-500 pl-3">🎬 最新上架 AI 短剧</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                {movies.map((movie) => <MovieCard key={movie.id} movie={movie} />)}
+              </div>
+            </div>
+
+            <div className="flex justify-center mt-16">
+              {hasMoreMovies ? (
+                <button
+                  onClick={handleLoadMoreMovies}
+                  disabled={loadingMovies}
+                  className="px-10 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMovies ? '🌌 正在加载更多 AI 宇宙...' : '↓ 向下无限浏览 ↓'}
+                </button>
+              ) : (
+                <p className="text-gray-400 text-sm">✨ 已经抵达 AI 影视的宇宙边缘，敬请等待新作诞生 ✨</p>
+              )}
+            </div>
+          </>
+        )}
       </section>
 
-      {/* 核心卡片区域 —— 三大顶级功能 */}
-      <section className="container mx-auto px-4 pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-         
-          {/* 卡片1：AI 图片生成 */}
-          <div
-            onClick={() => setActiveModal("image")}
-            className="group bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 p-10 text-center cursor-pointer border border-purple-100"
-          >
-            <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-5 shadow-lg text-white">
-              <SparklesIcon className="w-10 h-10" />
-            </div>
-            <h3 className="text-2xl font-bold mb-3 text-gray-800">AI 图片创生</h3>
-            <p className="text-gray-500 leading-relaxed mb-6">输入灵感，一键生成全球独一无二的高清创意图片，引爆你的视觉世界。</p>
-            <span className="inline-block text-purple-600 font-semibold text-sm group-hover:translate-x-1 transition-transform">立即体验 →</span>
-          </div>
-
-          {/* 卡片2：AI 视频生成 */}
-          <div
-            onClick={() => setActiveModal("video")}
-            className="group bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 p-10 text-center cursor-pointer border border-blue-100"
-          >
-            <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-5 shadow-lg text-white">
-              <CameraIcon className="w-10 h-10" />
-            </div>
-            <h3 className="text-2xl font-bold mb-3 text-gray-800">AI 视频生成</h3>
-            <p className="text-gray-500 leading-relaxed mb-6">让静态图像动起来！制作电影级预告片、动漫片段或短视频，创造影视大片。</p>
-            <span className="inline-block text-blue-600 font-semibold text-sm group-hover:translate-x-1 transition-transform">立即体验 →</span>
-          </div>
-
-          {/* 卡片3：AI 动漫工坊 */}
-          <div
-            onClick={() => setActiveModal("anime")}
-            className="group bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 p-10 text-center cursor-pointer border border-orange-100"
-          >
-            <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center mb-5 shadow-lg text-white">
-              <ChatBubbleLeftRightIcon className="w-10 h-10" />
-            </div>
-            <h3 className="text-2xl font-bold mb-3 text-gray-800">AI 动漫工坊</h3>
-            <p className="text-gray-500 leading-relaxed mb-6">生成精美的二次元作品，自动转换为动漫绘画与番剧风格，支持多集连续产出。</p>
-            <span className="inline-block text-orange-600 font-semibold text-sm group-hover:translate-x-1 transition-transform">立即体验 →</span>
-          </div>
-
+      {/* 区域4：真实的“灵感日志”文章列表 */}
+      <section className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="flex justify-between items-end mb-8 border-b-2 border-purple-200 pb-4">
+          <h2 className="text-3xl font-serif font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-3xl">📝</span> 灵感日志
+          </h2>
+          <Link href="/blog" className="text-purple-600 text-sm hover:underline">查看全部 →</Link>
         </div>
+
+        {loadingPosts ? (
+          <div className="text-center py-10 text-gray-400">加载灵感日志中...</div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-10 text-gray-400">还没有灵感日志，快去 AI 卡片生成吧！</div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100">
+            {posts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* 页脚 */}
-      <footer className="border-t border-gray-200 py-10 text-center text-gray-400 text-sm bg-white/50 backdrop-blur-sm">
-        <p>© 2025 AI-WORDPRESS 创作工坊 · 用 AI 重塑全球影视与创作生态</p>
-      </footer>
-
-      {/* 浮动助手及真实的模态框调用 */}
+      {/* 统一模态框与浮动助手 */}
+      {activeModal === 'image' && <AIImageModal onClose={closeModal} />}
+      {activeModal === 'translate' && <TranslateModal onClose={closeModal} />}
+      {activeModal === 'video' && <VideoModal onClose={closeModal} />}
       <ClientOnly>
         <FloatingChat />
       </ClientOnly>
-     
-      {/* 🔥 核心修复：将占位 div 替换为真实的模态框组件！ */}
-      {activeModal === "image" && <AIImageModal onClose={closeModal} />}
-      {activeModal === "video" && <VideoModal onClose={closeModal} />}
-      {/* 由于您说动漫也是独立的工坊，如果还没有独立的动漫模态框，这里暂时沿用 AIChatModal，并在里面用代码判断触发 AI */}
-      {activeModal === "anime" && <AIImageModal onClose={closeModal} />}
     </div>
   );
 }

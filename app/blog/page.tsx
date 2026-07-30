@@ -211,7 +211,7 @@ export default function BlogPage() {
           
           <div className="flex flex-col items-center mt-6 mb-10">
             <a 
-              href="【请将这里替换为您在 Cloud Studio 工作空间分享的公开链接】" 
+              href="https://cloudstudio.net/a/37226742083846144?channel=share&sharetype=URL"
               target="_blank" 
               rel="noopener noreferrer"
               className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xl rounded-full shadow-2xl hover:scale-105 transition-transform flex items-center gap-3"

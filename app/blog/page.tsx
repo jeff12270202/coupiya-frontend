@@ -2,14 +2,18 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import NextDynamic from 'next/dynamic';
-import Image from 'next/image'; // ✅ 这里被正确使用了，黄色警告将消失
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   SparklesIcon,
   LanguageIcon,
   FilmIcon,
+  PlayCircleIcon,
+  XMarkIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import FloatingChat from '@/components/FloatingChat';
 import ClientOnly from '@/components/ClientOnly';
@@ -49,9 +53,7 @@ const SERVICES = [
   },
 ];
 
-// --------------------------------------------------------
-// 2. 数据结构定义
-// --------------------------------------------------------
+// 电影和文章数据结构
 interface MovieData {
   id: number;
   title: { rendered: string };
@@ -72,8 +74,104 @@ interface PostData {
   };
 }
 
+// =====================================================
+// 🎬【新增】无限滑动视频流组件 (仿微信视频号)
+// =====================================================
+function VideoFeedModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [videos, setVideos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 使用 Pexels 免费 API 获取海量视频数据
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchVideos = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('https://api.pexels.com/videos/popular?per_page=15', {
+          headers: {
+            // 替换为您自己的 Pexels API Key (免费注册即可获取)
+            Authorization: '563492ad6f91700001000001c9a419d6862040d8ac46894b391220d4' 
+          }
+        });
+        const data = await res.json();
+        setVideos(data.videos || []);
+      } catch (err) {
+        // 如果 API 报错，使用内置的演示测试视频流
+        console.warn('Pexels API 失败，使用内置演示视频:', err);
+        setVideos([
+          { id: 1, video_files: [{ link: 'https://www.w3schools.com/html/mov_bbb.mp4', quality: 'hd' }] },
+          { id: 2, video_files: [{ link: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', quality: 'hd' }] },
+          { id: 3, video_files: [{ link: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', quality: 'hd' }] },
+          { id: 4, video_files: [{ link: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', quality: 'hd' }] },
+          { id: 5, video_files: [{ link: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', quality: 'hd' }] },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchVideos();
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
+      {/* 顶部关闭按钮 */}
+      <button onClick={onClose} className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white">
+        <XMarkIcon className="w-8 h-8" />
+      </button>
+
+      {/* 滑动视频容器 */}
+      <div className="w-full h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black">
+        {loading ? (
+          <div className="w-full h-full flex items-center justify-center text-white text-xl">🌍 加载视频流中...</div>
+        ) : (
+          videos.map((video, idx) => {
+            // 过滤出可以播放的 MP4/HLS 地址
+            const videoUrl = video.video_files?.find((f: any) => f.quality === 'hd' || f.quality === 'sd')?.link || video.video_files?.[0]?.link;
+            return (
+              <div key={video.id || idx} className="w-full h-[100vh] snap-start relative flex items-center justify-center bg-gray-900">
+                <video
+                  src={videoUrl}
+                  className="w-full h-full object-cover"
+                  controls
+                  loop
+                  autoPlay
+                  muted={idx !== 0} // 只有第一个视频有声音
+                  playsInline
+                />
+                {/* 底部提示滑动 */}
+                <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center justify-center text-white/60 text-xs animate-pulse">
+                  <span className="bg-black/30 px-3 py-1 rounded-full">下滑查看更多视频</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =====================================================
+// 🎬【新增】浮动触发按钮 (右下角)
+// =====================================================
+function FloatingVideoButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="fixed bottom-24 right-6 z-40 p-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center gap-2"
+    >
+      <PlayCircleIcon className="w-8 h-8" />
+      <span className="text-xs font-bold pr-1 hidden sm:block">刷短视频</span>
+    </button>
+  );
+}
+
+
 export default function BlogPage() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [isVideoFeedOpen, setIsVideoFeedOpen] = useState(false);
   const closeModal = () => setActiveModal(null);
 
   const [movies, setMovies] = useState<MovieData[]>([]);
@@ -89,9 +187,7 @@ export default function BlogPage() {
     if (loadingMovies) return;
     setLoadingMovies(true);
     try {
-      const res = await fetch(
-        `https://blog.coupiya.com/wp-json/wp/v2/movie?page=${pageNum}&per_page=12&_embed`
-      );
+      const res = await fetch(`https://blog.coupiya.com/wp-json/wp/v2/movie?page=${pageNum}&per_page=12&_embed`);
       if (!res.ok) throw new Error('Failed to fetch movies');
       const data = await res.json();
       if (data.length === 0) {
@@ -110,9 +206,7 @@ export default function BlogPage() {
   const fetchPosts = useCallback(async () => {
     setLoadingPosts(true);
     try {
-      const res = await fetch(
-        `https://blog.coupiya.com/wp-json/wp/v2/posts?per_page=5&_embed`
-      );
+      const res = await fetch(`https://blog.coupiya.com/wp-json/wp/v2/posts?per_page=5&_embed`);
       if (!res.ok) throw new Error('Failed to fetch posts');
       const data = await res.json();
       setPosts(data);
@@ -138,8 +232,7 @@ export default function BlogPage() {
 
   // ======================== 电影卡片组件 ========================
   const MovieCard = ({ movie }: { movie: MovieData }) => (
-    <div className="group relative bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-      {/* 外层加了 relative，所以内部 Image 组件可以用 fill 铺满 */}
+    <Link href={movie.link} target="_blank" className="group relative bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
       <div className="relative aspect-[2/3] overflow-hidden bg-gray-200">
         <Image
           src={movie._embedded?.['wp:featuredmedia']?.[0]?.source_url || 'https://placehold.co/300x450/222/fff?text=AI+Movie'}
@@ -160,7 +253,7 @@ export default function BlogPage() {
           <span>12 分钟</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 
   // ======================== 灵感日志卡片组件 ========================
@@ -334,8 +427,12 @@ export default function BlogPage() {
       {activeModal === 'image' && <AIImageModal onClose={closeModal} />}
       {activeModal === 'translate' && <TranslateModal onClose={closeModal} />}
       {activeModal === 'video' && <VideoModal onClose={closeModal} />}
+      
       <ClientOnly>
         <FloatingChat />
+        {/* 新增的无限视频流浮窗 */}
+        <FloatingVideoButton onClick={() => setIsVideoFeedOpen(true)} />
+        <VideoFeedModal isOpen={isVideoFeedOpen} onClose={() => setIsVideoFeedOpen(false)} />
       </ClientOnly>
     </div>
   );

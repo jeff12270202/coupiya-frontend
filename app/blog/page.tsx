@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // ✅ 删除了没用的 useRef
 import NextDynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -12,8 +12,8 @@ import {
   FilmIcon,
   PlayCircleIcon,
   XMarkIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
+  ChevronUpIcon, // ✅ 保留并用于指示上下滑动
+  ChevronDownIcon, // ✅ 保留并用于指示上下滑动
 } from '@heroicons/react/24/outline';
 import FloatingChat from '@/components/FloatingChat';
 import ClientOnly from '@/components/ClientOnly';
@@ -140,9 +140,14 @@ function VideoFeedModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                   muted={idx !== 0} // 只有第一个视频有声音
                   playsInline
                 />
-                {/* 底部提示滑动 */}
-                <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center justify-center text-white/60 text-xs animate-pulse">
-                  <span className="bg-black/30 px-3 py-1 rounded-full">下滑查看更多视频</span>
+                
+                {/* ✅ 在这里实际渲染向上/向下滑动的提示箭头 */}
+                <div className="absolute bottom-14 left-0 right-0 flex flex-row justify-center gap-6 items-center text-white/60 text-xs animate-pulse">
+                  <ChevronUpIcon className="w-5 h-5" />
+                  <span className="bg-black/30 px-3 py-1 rounded-full border border-white/20 font-medium tracking-wider">
+                    滑动换视频
+                  </span>
+                  <ChevronDownIcon className="w-5 h-5" />
                 </div>
               </div>
             );

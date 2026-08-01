@@ -14,6 +14,7 @@
     "@editorjs/header": "^2.8.8",
     "@editorjs/paragraph": "^2.11.7",
     "@heroicons/react": "^2.2.0",
+    "@types/video.js": "^7.3.58",
     "graphql": "^16.9.0",
     "mammoth": "^1.12.0",
     "next": "^14.2.35",
@@ -21,7 +22,8 @@
     "php-serialize": "^5.1.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tencentcloud-sdk-nodejs": "^4.1.276"
+    "tencentcloud-sdk-nodejs": "^4.1.276",
+    "video.js": "^8.23.9"
   },
   "devDependencies": {
     "@types/node": "^20",

@@ -217,9 +217,15 @@ export default function AIWordPressPage() {
               <div className="max-w-6xl mx-auto mb-16 relative group rounded-2xl overflow-hidden shadow-2xl bg-gray-900">
                 <img 
                   /* 这里的 movies[0]! 就是修复报错的核心 */
-                  src={movies[0]!._embedded?.['wp:featuredmedia']?.[0]?.source_url || '/placeholder-movie.jpg'} 
+                  src={movies[0]!._embedded?.['wp:featuredmedia']?.[0]?.source_url || PLACEHOLDER_POSTER} 
                   alt={movies[0]!.title.rendered} 
                   className="w-full h-[400px] md:h-[500px] object-cover opacity-80 group-hover:opacity-70 transition-opacity"
+                  onError={(e) => {
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (img.src !== PLACEHOLDER_POSTER) {
+                      img.src = PLACEHOLDER_POSTER;
+                    }
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
                 <div className="absolute bottom-10 left-10 text-white z-10">

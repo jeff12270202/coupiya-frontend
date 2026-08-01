@@ -21,7 +21,7 @@ export default function VideoFeedModal({ isOpen, onClose }: VideoFeedModalProps)
         const res = await fetch('https://api.pexels.com/videos/popular?per_page=15', {
           headers: {
             // 替换为您自己的 Pexels API Key (免费注册即可获取)
-            Authorization: '563492ad6f91700001000001c9a419d6862040d8ac46894b391220d4' 
+            Authorization: '2TbWGew1wNxt1k2vAIS5689Fxb7u6QM3prJbsIvgRSogx7dAD7WzgwC6' 
           }
         });
         const data = await res.json();

@@ -18,6 +18,22 @@ import {
 import FloatingChat from '@/components/FloatingChat';
 import ClientOnly from '@/components/ClientOnly';
 
+const PLACEHOLDER_POSTER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600' viewBox='0 0 400 600'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%231a1a2e'/%3E%3Cstop offset='100%25' style='stop-color:%2316213e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='600' fill='url(%23bg)'/%3E%3Ctext x='200' y='280' text-anchor='middle' fill='%23e94560' font-family='Arial' font-size='64' font-weight='bold'%3E🎬%3C/text%3E%3Ctext x='200' y='340' text-anchor='middle' fill='%238a8a9a' font-family='Arial' font-size='20'%3ECOUPIYA%3C/text%3E%3Ctext x='200' y='370' text-anchor='middle' fill='%235a5a6a' font-family='Arial' font-size='14'%3EAI MOVIE%3C/text%3E%3C/svg%3E";
+
+/**
+ * 从 WordPress permalink 中提取 slug
+ * 例如: https://blog.coupiya.com/movie/avatar-3/ → avatar-3
+ */
+function extractSlug(link: string): string | null {
+  try {
+    const url = new URL(link);
+    const segments = url.pathname.replace(/\/$/, '').split('/');
+    return segments[segments.length - 1] || null;
+  } catch {
+    return null;
+  }
+}
+
 // 动态导入模态框
 const AIImageModal = NextDynamic(() => import('@/components/AIImageModal'), { ssr: false });
 const VideoModal = NextDynamic(() => import('@/components/VideoModal'), { ssr: false });
@@ -236,30 +252,44 @@ export default function BlogPage() {
   };
 
   // ======================== 电影卡片组件 ========================
-  const MovieCard = ({ movie }: { movie: MovieData }) => (
-    <Link href={movie.link} target="_blank" className="group relative bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-      <div className="relative aspect-[2/3] overflow-hidden bg-gray-200">
-        <Image
-          src={movie._embedded?.['wp:featuredmedia']?.[0]?.source_url || 'https://placehold.co/300x450/222/fff?text=AI+Movie'}
-          alt={movie.title.rendered}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105 group-hover:brightness-75"
-        />
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center text-black shadow-lg">
-            ▶
+  const MovieCard = ({ movie }: { movie: MovieData }) => {
+    const slug = extractSlug(movie.link);
+    const posterSrc = movie._embedded?.['wp:featuredmedia']?.[0]?.source_url || PLACEHOLDER_POSTER;
+
+    return (
+      <Link
+        href={slug ? `/movie/${encodeURIComponent(slug)}` : movie.link}
+        className="group relative bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+      >
+        <div className="relative aspect-[2/3] overflow-hidden bg-gray-200">
+          <Image
+            src={posterSrc}
+            alt={movie.title.rendered}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105 group-hover:brightness-75"
+            onError={(e) => {
+              const target = e.currentTarget as HTMLImageElement;
+              if (target.src !== PLACEHOLDER_POSTER) {
+                target.src = PLACEHOLDER_POSTER;
+              }
+            }}
+          />
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center text-black shadow-lg">
+              ▶
+            </div>
           </div>
         </div>
-      </div>
-      <div className="p-3">
-        <h4 className="font-bold text-gray-800 text-sm truncate">{movie.title.rendered}</h4>
-        <div className="flex justify-between items-center mt-2 text-[10px] text-gray-500">
-          <span className="flex items-center gap-1">⭐ 9.0 <span className="text-gray-400 text-[8px]">AI</span></span>
-          <span>12 分钟</span>
+        <div className="p-3">
+          <h4 className="font-bold text-gray-800 text-sm truncate">{movie.title.rendered}</h4>
+          <div className="flex justify-between items-center mt-2 text-[10px] text-gray-500">
+            <span className="flex items-center gap-1">⭐ 9.0 <span className="text-gray-400 text-[8px]">AI</span></span>
+            <span>12 分钟</span>
+          </div>
         </div>
-      </div>
-    </Link>
-  );
+      </Link>
+    );
+  };
 
   // ======================== 灵感日志卡片组件 ========================
   const PostCard = ({ post }: { post: PostData }) => (

@@ -58,8 +58,10 @@ function extractVideoUrl(sources: unknown): string | null {
   return null;
 }
 
+const WP_API_BASE = process.env.NEXT_PUBLIC_WP_API_URL || 'https://blog.coupiya.com/wp-json/wp/v2';
+
 export default async function MoviePage({ params }: { params: { slug: string } }) {
-  const apiUrl = `https://blog.coupiya.com/wp-json/wp/v2/movie?slug=${encodeURIComponent(params.slug)}&_embed`;
+  const apiUrl = `${WP_API_BASE}/movie?slug=${encodeURIComponent(params.slug)}&_embed`;
 
   const res = await fetch(apiUrl, {
     next: { revalidate: 60 },

@@ -190,9 +190,12 @@ export default function BlogPage() {
 
   /* -------------------- MovieCard -------------------- */
   const MovieCard = ({ movie }: { movie: MovieData }) => {
-    // 优先使用 WP API 返回的 slug，其次从 link 提取
-    const movieSlug = movie.slug || (() => {
-      try { const u = new URL(movie.link); const segs = u.pathname.replace(/\/$/, '').split('/'); return segs[segs.length - 1] || ''; } catch { return ''; }
+    // WP 返回的 slug 是 URL-encoded (如 %e6%95%99%e7%88%b6)，先解码，避免双重编码
+    const movieSlug = (() => {
+      const raw = movie.slug || (() => {
+        try { const u = new URL(movie.link); const segs = u.pathname.replace(/\/$/, '').split('/'); return segs[segs.length - 1] || ''; } catch { return ''; }
+      })();
+      try { return decodeURIComponent(raw); } catch { return raw; }
     })();
     const posterSrc = movie._embedded?.['wp:featuredmedia']?.[0]?.source_url || PLACEHOLDER_POSTER;
 

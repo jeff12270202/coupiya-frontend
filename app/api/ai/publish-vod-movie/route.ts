@@ -133,7 +133,7 @@ export async function POST(req: Request) {
                 status: 'publish',
                 movie_genre: [59],
                 meta: {
-                    "sources": serializedSources,
+                    "_sources": serializedSources,
                 }
             })
         });

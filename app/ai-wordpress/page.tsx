@@ -79,8 +79,11 @@ export default function AIWordPressPage() {
   useEffect(() => { fetchMovies(1, false); }, []);
 
   const MovieCard = ({ movie }: { movie: MovieData }) => {
-    const movieSlug = movie.slug || (() => {
-      try { const u = new URL(movie.link); const segs = u.pathname.replace(/\/$/, '').split('/'); return segs[segs.length - 1] || ''; } catch { return ''; }
+    const movieSlug = (() => {
+      const raw = movie.slug || (() => {
+        try { const u = new URL(movie.link); const segs = u.pathname.replace(/\/$/, '').split('/'); return segs[segs.length - 1] || ''; } catch { return ''; }
+      })();
+      try { return decodeURIComponent(raw); } catch { return raw; }
     })();
     const posterSrc = movie._embedded?.['wp:featuredmedia']?.[0]?.source_url || PLACEHOLDER_POSTER;
     return (

@@ -8,7 +8,14 @@ export async function POST(req: NextRequest) {
     // 动态读取你的环境变量，与前端保持渠道一致
     const channel = process.env.NEXT_PUBLIC_SALEOR_CHANNEL || 'default-channel';
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SALEOR_API_URL}`, {
+    // 【修复】端点补兜底，避免环境变量缺失时 fetch 直接抛错
+    const saleorUrl = (
+      process.env.NEXT_PUBLIC_SALEOR_API_URL ?? 'https://api.coupiya.com/saleor/graphql/'
+    ).replace(/\/+$/, '') + '/';
+
+    // 说明：本路由运行在服务端（Node），不受浏览器 CORS 限制，
+    // 因此可以直接用绝对地址访问 Saleor。
+    const response = await fetch(saleorUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -16,7 +23,10 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         query: `
           query GetRandomProducts($limit: Int!, $channel: String!) {
-            products(first: $limit, channel: $channel, sortBy: { field: RANDOM }) {
+            # 【致命修复】原为 sortBy: { field: RANDOM } —— Saleor 不支持 RANDOM，
+            # 会返回 400: Expected type "ProductOrderField", found RANDOM.
+            # 该错误导致本接口在本地与线上【都】恒返回空数组。
+            products(first: $limit, channel: $channel) {
               edges {
                 node {
                   id
@@ -35,7 +45,8 @@ export async function POST(req: NextRequest) {
           }
         `,
         variables: {
-          limit: limit,
+          // 多取候选（3 倍）供服务端洗牌，效果等同于“随机推荐”
+          limit: Math.max(limit * 3, limit),
           channel: channel
         }
       }),
@@ -56,7 +67,14 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await response.json();
-    const products = result?.data?.products?.edges?.map((edge: any) => edge.node) || [];
+    const candidates = result?.data?.products?.edges?.map((edge: any) => edge.node) || [];
+
+    // 服务端洗牌（替代 Saleor 不支持的 sortBy: RANDOM），再截取所需数量
+    const products = candidates
+      .map((node: any) => ({ node, r: Math.random() }))
+      .sort((a: any, b: any) => a.r - b.r)
+      .slice(0, limit)
+      .map((x: any) => x.node);
 
     return NextResponse.json({
       productIds: products.map((p: any) => p.id),

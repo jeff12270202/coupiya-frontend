@@ -1,152 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+// ============================================================================
+// app/api/ai/generate-image/route.ts —— AI 图片生成（纹样/通用生图）
+// 生产级实现全部在 lib/ai-image.ts（限流/超时/校验/COS 持久化/四层降级/日志）
+// 本文件只负责：本路由的业务配置（提示词风格、HF 兜底模型、COS 前缀、默认尺寸）
+// ============================================================================
 
-// 工具函数：等待 Replicate 生成任务完成（轮询）
-async function waitForReplicate(predictionId: string, apiKey: string) {
-  let attempts = 0;
-  while (attempts < 30) { // 最多等待约 60 秒
-    const res = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
-      headers: { Authorization: `Token ${apiKey}` },
-    });
-    const data = await res.json();
-    if (data.status === 'succeeded') return data.output?.[0] || null;
-    if (data.status === 'failed') return null;
-    await new Promise(r => setTimeout(r, 2000)); // 每 2 秒轮询一次
-    attempts++;
-  }
-  return null;
-}
+import { createImageGenHandler } from '@/lib/ai-image';
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { prompt, width = 512, height = 512 } = body;
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
 
-    // =========================================================================
-    // 🥇 第一层：DeepSeek - 智能润色与优化提示词（文本模型的绝对主力）
-    // =========================================================================
-    let finalPrompt = prompt;
-    const deepseekKey = process.env.DEEPSEEK_API_KEY;
-    if (deepseekKey) {
-      try {
-        const dsRes = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${deepseekKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              {
-                role: 'system',
-                content: `你是一个资深的 AI 绘画提示词优化工程师。请将用户的描述转化为适合 AI 绘图模型生成高质量图片的英文提示词。
-要求：直接输出英文提示词，包含画质词（masterpiece, best quality）、风格描述、光影与主体细节。不要包含任何解释、对话、引号或多余说明。`
-              },
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
-            max_tokens: 300,
-            temperature: 0.7,
-          }),
-        });
-
-        if (dsRes.ok) {
-          const dsData = await dsRes.json();
-          const optimizedPrompt = dsData.choices?.[0]?.message?.content?.trim();
-          if (optimizedPrompt) finalPrompt = optimizedPrompt;
-        }
-      } catch (dsError) {
-        console.warn('DeepSeek 提示词优化失败，使用原始提示词:', dsError);
-      }
-    }
-
-    // =========================================================================
-    // 🥈 第二层：Pollinations - 极速免费图片生成（绝对首选）
-    // =========================================================================
-    try {
-      const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&nologin=true`;
-      // Pollinations 直接返回图片直链，响应极快。只要直链生成，直接返回给前端！
-      return NextResponse.json({ imageUrl: pollUrl, success: true });
-    } catch (pollError) {
-      console.warn('Pollinations 请求失败，进入 Replicate 兜底:', pollError);
-    }
-
-    // =========================================================================
-    // 🥉 第三层：Replicate - 强力商业级生图（性能兜底）
-    // =========================================================================
-    let imageUrl: string | null = null;
-    const replicateKey = process.env.REPLICATE_API_KEY;
-    if (replicateKey) {
-      try {
-        const replicateRes = await fetch('https://api.replicate.com/v1/predictions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Token ${replicateKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            // 使用 SDXL 模型，擅长写实、艺术、插画等多种风格
-            version: "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
-            input: { prompt: finalPrompt, width: Math.min(1024, width), height: Math.min(1024, height) }
-          }),
-        });
-        const predData = await replicateRes.json();
-        if (predData.id) {
-          const outputUrl = await waitForReplicate(predData.id, replicateKey);
-          if (outputUrl) {
-            imageUrl = outputUrl;
-            return NextResponse.json({ imageUrl, success: true });
-          }
-        }
-      } catch (repError) {
-        console.warn('Replicate 生成失败，进入最终后备层:', repError);
-      }
-    }
-
-    // =========================================================================
-    // 🛡️ 后备层：Hugging Face Inference - 纯免费开源模型兜底
-    // =========================================================================
-    if (!imageUrl) {
-      const hfKey = process.env.HUGGINGFACE_API_KEY;
-      if (hfKey) {
-        try {
-          // 使用 Hugging Face 的 Stable Diffusion 2-1 模型兜底
-          const hfRes = await fetch('https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${hfKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ inputs: finalPrompt }),
-          });
-          if (hfRes.ok) {
-            const buffer = await hfRes.arrayBuffer();
-            const base64 = Buffer.from(buffer).toString('base64');
-            imageUrl = `data:image/jpeg;base64,${base64}`;
-            return NextResponse.json({ imageUrl, success: true });
-          }
-        } catch (hfError) {
-          console.error('HuggingFace 完全兜底失败:', hfError);
-        }
-      }
-    }
-
-    // =========================================================================
-    // 💀 终极应对：如果前面所有接口全部崩掉，返回占位图
-    // =========================================================================
-    if (!imageUrl) {
-      imageUrl = `https://placehold.co/${width}x${height}/f472b6/white?text=${encodeURIComponent('生成服务繁忙')}`;
-    }
-
-    return NextResponse.json({ imageUrl, success: true });
-
-  } catch (error) {
-    console.error('图片生成 API 严重错误:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', success: false, imageUrl: `https://placehold.co/512x512/ef4444/white?text=生成失败` },
-      { status: 500 }
-    );
-  }
-}
+export const POST = createImageGenHandler({
+  namespace: 'gen-image',
+  defaultDim: 512,
+  placeholderText: '生成服务繁忙',
+  promptSystem: [
+    '你是一个资深的 AI 绘画提示词优化工程师。请将用户的描述转化为适合 AI 绘图模型生成高质量图片的英文提示词。',
+    '要求：直接输出英文提示词，包含画质词（masterpiece, best quality）、风格描述、光影与主体细节。不要包含任何解释、对话、引号或多余说明。',
+  ].join(''),
+  hfEndpoint: 'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1',
+  cosKeyPrefix: 'ai-images',
+});

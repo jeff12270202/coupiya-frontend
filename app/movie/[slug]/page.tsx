@@ -88,7 +88,14 @@ export default function MoviePage() {
   useEffect(() => {
     if (!slugFromRoute) { setLoading(false); setDebugMsg('未找到影片ID'); return; }
 
-    const WP_API = process.env.NEXT_PUBLIC_WP_API_URL || 'https://blog.coupiya.com/wp-json/wp/v2';
+    // 【CORS 修复】浏览器端走同源代理 /api/wp（见 next.config.js rewrites），
+    // 由 Next.js 服务端转发到 https://blog.coupiya.com/wp-json/wp/v2。
+    // 原因：blog.coupiya.com 对 Origin: http://localhost:3000 不返回
+    //       Access-Control-Allow-Origin，浏览器直连会报 "Failed to fetch"。
+    const WP_API =
+      typeof window !== 'undefined'
+        ? '/api/wp'
+        : (process.env.NEXT_PUBLIC_WP_API_URL || 'https://blog.coupiya.com/wp-json/wp/v2').replace(/\/+$/, '');
     const encodedSlug = encodeURIComponent(slugFromRoute);
     const url = `${WP_API}/movie?slug=${encodedSlug}&_embed`;
 

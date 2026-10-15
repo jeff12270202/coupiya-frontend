@@ -61,6 +61,32 @@ const nextConfig = {
     // unoptimized: true,
   },
 
+  // ============================================================
+  // 【同源反向代理】解决本地开发 http://localhost:3000 的跨域拦截问题
+  // ------------------------------------------------------------
+  // 病因：api.coupiya.com / blog.coupiya.com 的 nginx CORS 白名单只放行
+  //       coupiya.com、*.vercel.app、dashboard.coupiya.com，
+  //       【不包含 http://localhost:3000】。
+  //       浏览器直连时预检返回空的 Access-Control-Allow-Origin，
+  //       请求被浏览器拦截，前端只看到 "TypeError: Failed to fetch"。
+  // 解法：浏览器只访问同源路径，由 Next.js 服务端转发到目标站（服务端无 CORS）。
+  //       /api/graphql  → Saleor GraphQL
+  //       /api/wp/*     → WordPress REST (wp-json/wp/v2)
+  // 生产环境同样适用，且能顺带修好原先 404 的 /api/graphql 调用。
+  // ============================================================
+  async rewrites() {
+    return [
+      {
+        source: '/api/graphql',
+        destination: 'https://api.coupiya.com/saleor/graphql/',
+      },
+      {
+        source: '/api/wp/:path*',
+        destination: 'https://blog.coupiya.com/wp-json/wp/v2/:path*',
+      },
+    ];
+  },
+
   // 跨域请求头
   async headers() {
     return [

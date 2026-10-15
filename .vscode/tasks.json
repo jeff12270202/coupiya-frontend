@@ -1,0 +1,16 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "启动 Harness",
+            "type": "shell",
+            "command": "pnpm dsh web",
+            "options": {
+                "cwd": "F:\\deepseek-harness"
+            },
+            "presentation": {
+                "reveal": "always"
+            }
+        }
+    ]
+}

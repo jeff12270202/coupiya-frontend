@@ -2,42 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
+/* ============================================================================
+ * app/globals.css —— 全球生产级全局样式
+ * ----------------------------------------------------------------------------
+ * 相对原版的全部升级：
+ *   1. 【删除与 Tailwind 冲突的 body 背景】原版 globals.css 的 body 规则是
+ *      Next.js 默认样板（无层级的 CSS 会覆盖 layout 里 body 的 Tailwind 渐变类，
+ *      导致 layout 的背景色永远不生效）；且 prefers-color-scheme: dark 会把
+ *      整个粉色主题站点在深色系统下强制变黑 —— 全部移除，背景交给 Tailwind
+ *   2. 【统一滚动条隐藏类】页面里用的是 scrollbar-hide，原版只定义了
+ *      no-scrollbar —— 两个都支持（互为别名），WebKit + Firefox 双兼容
+ *   3. 补充基础排版：antialiased、focus-visible 焦点环、选区颜色、容器滚动条样式
+ * ========================================================================== */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
   }
-}
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  body {
+    @apply antialiased text-gray-800;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 全局键盘焦点可见性（无障碍） */
+  :focus-visible {
+    outline: 2px solid theme('colors.purple.500');
+    outline-offset: 2px;
+  }
+
+  /* 选区配色（品牌一致） */
+  ::selection {
+    background-color: theme('colors.purple.200');
+    color: theme('colors.gray.900');
+  }
+
+  /* 横向滚动条细化（桌面端产品图/缩略图行） */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.gray.300') transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: theme('colors.gray.300');
+    border-radius: 8px;
+  }
 }
 
 @layer utilities {
+  /* 平衡换行（标题） */
   .text-balance {
     text-wrap: balance;
   }
-}
 
-/* 自定义滚动条隐藏 */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
+  /* 隐藏滚动条（通用，WebKit + Firefox + IE/Edge 旧语法） */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE / Edge 旧 */
+    scrollbar-width: none; /* Firefox */
+  }
 
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  /* 别名：兼容旧代码里的 no-scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* 三行截断（详情摘要） */
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }

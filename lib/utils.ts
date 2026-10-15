@@ -1,36 +1,28 @@
-export const MEDIA_BASE_URL = process.env.NEXT_PUBLIC_MEDIA_BASE_URL || 'https://api.coupiya.com';
+// ============================================================================
+// lib/utils.ts —— 兼容枢纽（re-export hub）
+// ----------------------------------------------------------------------------
+// 说明：URL 归一化逻辑已收敛到 lib/media-url.ts（canonical）与 lib/thumbnail.ts
+//       （缩略图 + size 参数）。本文件仅为兼容旧 import 的再导出枢纽，不重复实现。
+//
+// 相对原版的全部升级：
+//   1. 【删除假占位图】原 normalizeImageUrl 对空值返回 `${base}/placeholder.png` ——
+//      这是全站反复清除的「假内容冒充真实资源」反模式：占位图不存在时就是裂图，
+//      存在时则掩盖数据缺失、让用户误以为资源真实存在。现统一返回空串，由组件
+//      渲染自己的骨架/占位 UI（诚实契约，fail-closed）
+//   2. 【修正环境变量】NEXT_PUBLIC_MEDIA_BASE_URL 不存在 → 统一读 NEXT_PUBLIC_MEDIA_URL
+//   3. 【单一实现】所有归一化逻辑收敛到 media-url.ts（含 /thumbnails/ 复数、MinIO
+//      内网 IP 43.166.132.156:9002、localhost、协议同域、http→https），本文件只再导出
+// ============================================================================
 
-export function normalizeImageUrl(url: string | undefined | null): string {
-  if (!url) return `${MEDIA_BASE_URL}/placeholder.png`;
+import { normalizeImageUrl } from './media-url';
 
-  // 已经正确 → 直接返回
-  if (url.startsWith(`${MEDIA_BASE_URL}/`)) return url;
+export { getMediaUrl, normalizeImageUrl } from './media-url';
+export { getThumbnailUrl } from './thumbnail';
 
-  // nginx proxy media domain
-  if (url.startsWith('https://media.coupiya.com/')) return url;
-
-  // 替换 MinIO 内网地址
-  if (url.includes('43.166.132.156:9002')) {
-    return url.replace(/https?:\/\/43\.166\.132\.156:9002\/saleor-media/, `${MEDIA_BASE_URL}/media`);
-  }
-
-  // 替换 localhost 地址（开发环境）
-  if (url.includes('localhost:8000')) {
-    return url.replace(/https?:\/\/localhost:8000/, MEDIA_BASE_URL);
-  }
-
-  // 处理相对路径
-  if (url.startsWith('/thumbnail/') || url.startsWith('/thumbnails/') || url.startsWith('/media/')) {
-    return `${MEDIA_BASE_URL}${url.replace(/^\/thumbnails?/, '/media')}`;
-  }
-
-  // 其他 http/https 直接返回
-  if (url.startsWith('http')) return url;
-
-  // 兜底
-  return `${MEDIA_BASE_URL}/media/${url}`;
-}
-
-// 保留旧的函数名以便兼容
+/** 旧代码兼容别名 */
 export const getImageUrl = normalizeImageUrl;
-export const getThumbnailUrl = normalizeImageUrl;
+
+/** 兼容旧 import 的媒体域名常量（已归一化，无尾部斜杠） */
+export const MEDIA_BASE_URL = (process.env.NEXT_PUBLIC_MEDIA_URL || 'https://media.coupiya.com')
+  .trim()
+  .replace(/\/+$/, '');

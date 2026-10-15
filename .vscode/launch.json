@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "启动 Harness",
+            "runtimeExecutable": "C:\\Users\\yang4\\AppData\\Roaming\\npm\\pnpm.cmd",
+            "runtimeArgs": ["dsh", "web"],
+            "cwd": "F:\\deepseek-harness",
+            "console": "integratedTerminal",
+            "skipFiles": ["<node_internals>/**"]
+        }
+    ]
+}

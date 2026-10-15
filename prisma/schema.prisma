@@ -1,0 +1,78 @@
+// prisma/schema.prisma
+// Coupiya UGC AI platform schema
+// 1) User keeps legacy email/password (now optional: face users have none)
+// 2) New optional columns are safe for existing rows
+// 3) New tables: CreditTransaction, RechargeOrder
+// 4) Deploy: npx prisma generate -> npx prisma db push (needs DATABASE_URL env)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL") 
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String?  @unique
+  password  String?
+  balance   Int      @default(0)
+
+  faceId    String?  @unique
+  nickname  String?
+  avatar    String?
+  status    String   @default("active")
+  username  String?  @unique // 密码登录账号（刷脸注册后设置）
+  passwordHash String?       // scrypt 强密码哈希
+  passwordSetAt DateTime?    // 设置密码时间（null = 未设密码，仍需补设）
+  updatedAt DateTime @updatedAt
+
+  createdAt    DateTime          @default(now())
+  transactions CreditTransaction[]
+  recharges    RechargeOrder[]
+  b2Account    B2Account?
+}
+
+model CreditTransaction {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         String
+  amount       Int
+  balanceAfter Int
+  reason       String
+  relatedId    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model RechargeOrder {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String
+  providerOrderId String?   @unique
+  amountUsd       Float
+  currency        String    @default("USD")
+  credits         Int
+  status          String    @default("pending")
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([provider, status])
+}
+
+model B2Account {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bucket          String
+  bucketId        String
+  keyId           String
+  applicationKey  String // 受限密钥（服务端密存；永不返回前端）
+  keyPrefix       String
+  createdAt       DateTime @default(now())
+}

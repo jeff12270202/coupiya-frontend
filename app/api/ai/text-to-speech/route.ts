@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { deepseekOfficialModel } from '@/lib/ai-models';
 
 // 工具函数：等待 Replicate 生成任务完成（轮询）
 async function waitForReplicate(predictionId: string, apiKey: string) {
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'deepseek-chat',
+            model: deepseekOfficialModel(),
             messages: [
               {
                 role: 'system',

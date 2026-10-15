@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { deepseekOfficialModel } from '@/lib/ai-models';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'deepseek-chat',
+            model: deepseekOfficialModel(),
             messages: [
               {
                 role: 'system',

@@ -15,7 +15,11 @@ import {
   DocumentTextIcon,
   GlobeAltIcon,
   EyeIcon,
+  ServerStackIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
+import { toolLabel } from '@/lib/site-tools';
+import FaceAuthModal from '@/components/FaceAuthModal';
 
 // ================================================================
 // 类型定义
@@ -31,22 +35,67 @@ interface Attachment {
   error?: string;
 }
 
+/** 一次工具执行的留痕，用于向用户展示"我确实去查了/去做了" */
+interface ToolStep {
+  name: string;
+  label: string;
+  ok: boolean;
+  /** 结果摘要或失败原因，直接展示给用户 */
+  note: string;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   attachments?: Attachment[];
+  /** 本条回复的真实来源信息（模型 / 用量）。仅 AI 真回了才有，失败时为空 —— 便于用户分辨真伪。 */
+  meta?: { modelUsed?: string; usage?: Record<string, unknown> };
+  /** Agent 执行过哪些工具。有步骤 = 这是一次"真去做了"的回答 */
+  steps?: ToolStep[];
 }
 
-const MOCK_RESPONSES = [
-  '你好！我是瓷韵 AI 助手，很高兴为您服务！我可以帮您推荐陶瓷饰品、解答产品问题。',
-  '感谢您的咨询！这款陶瓷手链采用传统工艺制作，温润细腻，非常适合日常佩戴。',
-  '关于这个问题，让我为您详细解答...我们的陶瓷饰品都经过严格质量检测。',
-  '好的，我理解您的需求！让我为您推荐几款适合的陶瓷饰品。',
-  '这是一个很好的问题！我们的产品支持全球配送，通常 3-7 天可以送达。',
-  '瓷韵·灵境祝您购物愉快！有任何问题请随时告诉我。',
-];
+/** Agent Loop 的最大轮次 —— 防止工具互相触发导致无限循环（成本失控） */
+const MAX_AGENT_ROUNDS = 4;
+
+/** 把工具原始结果压成一句给用户看的进度描述（用户不需要看 JSON） */
+function summarizeToolResult(name: string, result?: Record<string, unknown>): string {
+  if (!result) return '已完成';
+  switch (name) {
+    case 'site_search':
+      return Number(result.found ?? 0) > 0 ? `查到 ${result.found} 项相关服务` : '目录中没有匹配的服务';
+    case 'search_product':
+      return Number(result.found ?? 0) > 0 ? `找到 ${result.found} 件相关商品` : '没有匹配的在售商品';
+    case 'search_blog':
+      return Number(result.found ?? 0) > 0 ? `找到 ${result.found} 篇文章` : '没有匹配的文章';
+    case 'get_my_account':
+      return result.loggedIn ? `余额 ${result.balance ?? 0} Credits` : '尚未登录，已引导登录';
+    case 'translate_text':
+      return result.translation ? '翻译完成' : '翻译未返回结果';
+    case 'web_search':
+      return result.results ? '已取回联网结果' : '联网搜索无结果';
+    default:
+      return '已完成';
+  }
+}
+
+/** 模型清单由 /api/ai/harness 下发（唯一事实来源 lib/ai-models.ts），前端不再硬编码 */
+interface ModelOption {
+  id: string;
+  label: string;
+  tier: string;
+  desc: string;
+}
+
+/**
+ * ⚠️ 已删除原 MOCK_RESPONSES 常量。
+ *
+ * 原实现在 catch 分支里随机返回一条"瓷韵 AI 助手"营销话术冒充 AI 回答
+ * （旧代码第 415-423 行）—— 网络断了、上游 500 了、限流了，用户看到的却是
+ * "这款陶瓷手链采用传统工艺制作…"，完全无法分辨这是 AI 答的还是编的。
+ * 这是本项目明令禁止的"fake 成功"，必须彻底移除。现在失败就如实报错。
+ */
 
 const IMAGE_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp';
 const DOC_ACCEPT = '.pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain';
@@ -72,7 +121,11 @@ export default function FloatingChat() {
     },
   ]);
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState('DeepSeek-R1');
+  /** 初始为空，挂载后由 /api/ai/harness 下发真实清单并选中默认模型 */
+  const [selectedModel, setSelectedModel] = useState('');
+  const [models, setModels] = useState<ModelOption[]>([]);
+  /** Harness Serverless Worker 是否已连接 —— 决定"深度任务"入口是可用还是给部署指引 */
+  const [harnessReady, setHarnessReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -86,6 +139,10 @@ export default function FloatingChat() {
 
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  /** 刷脸登录弹窗 —— open_face_login 工具会拉起它，让助手能真正完成"引导登录"这一步 */
+  const [faceOpen, setFaceOpen] = useState(false);
+  /** 实时显示当前正在执行哪一步工具（比单纯转圈更能建立信任） */
+  const [liveStep, setLiveStep] = useState('');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -93,6 +150,33 @@ export default function FloatingChat() {
   const docInputRef = useRef<HTMLInputElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  // ==========================================================================
+  // 【新增】模型清单 + Harness 主梁状态探测
+  // --------------------------------------------------------------------------
+  // 改版前模型名硬编码在这个组件里（只有 DeepSeek-R1 / DeepSeek-V3 两个选项），
+  // 与后端 aliases 不一致。现在统一向 /api/ai/harness 取，改后端一处即全站生效。
+  // ==========================================================================
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/ai/harness', { cache: 'no-store' });
+        const data = (await res.json()) as { models?: ModelOption[]; defaultModel?: string; configured?: boolean };
+        if (cancelled) return;
+        if (Array.isArray(data.models) && data.models.length > 0) {
+          setModels(data.models);
+          setSelectedModel((cur) => cur || data.defaultModel || data.models![0]!.id);
+        }
+        setHarnessReady(data.configured === true);
+      } catch {
+        /* 探测失败不阻断聊天：下拉回落到内置兜底项 */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 滚动到底部
   useEffect(() => {
@@ -314,6 +398,85 @@ export default function FloatingChat() {
   // ==========================================================================
   // 【核心修复 2】：确保所有代码路径都显式 return，解决 handleSend 的报错
   // ==========================================================================
+
+  /**
+   * 执行一次工具调用。
+   *
+   * 分工：
+   *   · 客户端工具（navigate / scroll_to_section / open_harness / open_face_login）
+   *     在这里【真的做动作】—— 跳页面、滚板块、开窗口、弹刷脸。
+   *   · 服务端工具（site_search / search_product / search_blog / get_my_account /
+   *     translate_text / web_search）交给 /api/ai/site-tools 执行。
+   *
+   * 任何失败都返回 ok:false + 真实原因，并把它作为 tool 消息回灌给模型 ——
+   * 这样模型能读到"失败了、为什么失败"，从而改口或换工具，而不是继续编。
+   */
+  const runTool = useCallback(
+    async (name: string, args: Record<string, unknown>): Promise<{ ok: boolean; note: string; payload: Record<string, unknown> }> => {
+      switch (name) {
+        case 'navigate': {
+          const path = String(args.path ?? '');
+          if (!path.startsWith('/')) {
+            return { ok: false, note: '路径非法（必须以 / 开头）', payload: { ok: false, error: 'path 必须以 / 开头' } };
+          }
+          const reason = String(args.reason ?? '');
+          // 延迟一点再跳，让用户先看到"正在带您前往"这句话，避免页面瞬间切走造成困惑
+          window.setTimeout(() => {
+            window.location.href = path;
+          }, 900);
+          return { ok: true, note: `正在带您前往 ${path}${reason ? `（${reason}）` : ''}`, payload: { ok: true, navigated: path } };
+        }
+        case 'scroll_to_section': {
+          const section = String(args.section ?? '');
+          const el = typeof document !== 'undefined' ? document.getElementById(section) : null;
+          if (!el) {
+            return {
+              ok: false,
+              note: `当前页面没有「${section}」板块`,
+              payload: { ok: false, error: '当前页面不存在该板块（该工具只在 /satellite 生效）' },
+            };
+          }
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return { ok: true, note: `已定位到「${section}」板块`, payload: { ok: true, section } };
+        }
+        case 'open_harness': {
+          window.open('/harness', 'coupiya-harness', 'width=1280,height=880,noopener,noreferrer');
+          const reason = String(args.reason ?? '');
+          return {
+            ok: true,
+            note: `已打开 Harness 主梁工作台${reason ? `（${reason}）` : ''}`,
+            payload: { ok: true, opened: '/harness' },
+          };
+        }
+        case 'open_face_login': {
+          setFaceOpen(true);
+          return { ok: true, note: '已弹出刷脸登录，请按提示完成人脸核身', payload: { ok: true, opened: true } };
+        }
+        default:
+          break;
+      }
+
+      // ---- 服务端工具 ----
+      try {
+        const res = await fetch('/api/ai/site-tools', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, args }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: Record<string, unknown>; error?: string };
+        if (!res.ok || data.ok === false) {
+          const msg = data.error || `工具执行失败（HTTP ${res.status}）`;
+          return { ok: false, note: msg, payload: { ok: false, error: msg } };
+        }
+        return { ok: true, note: summarizeToolResult(name, data.result), payload: { ok: true, result: data.result } };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '工具执行异常';
+        return { ok: false, note: msg, payload: { ok: false, error: msg } };
+      }
+    },
+    [],
+  );
+
   const handleSend = async () => {
     const hasReadyAttachments = attachments.some((a) => !a.uploading && !a.error);
     if ((!input.trim() && !hasReadyAttachments) || isLoading) return;
@@ -333,96 +496,144 @@ export default function FloatingChat() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: input || '请分析我上传的内容',
-          history: messages,
-          model: selectedModel,
-          attachments: readyAttachments.map((a) => ({
-            type: a.type,
-            base64: a.base64,
-            text: a.text,
-            fileName: a.fileName,
-          })),
-        }),
-      });
-      const data = await res.json();
+      // ==================================================================
+      // Agent Loop —— 让助手真正"能查、能做"
+      // ------------------------------------------------------------------
+      // 与改版前的本质区别：
+      //   旧：只认 web_search 一个工具、只跑一轮；search_product 被声明了却
+      //       没有执行分支 —— 模型调了也白调，反而给了它幻觉的来源。
+      //   新：通用循环 AI → 工具调用 → 执行 → 结果回灌 → AI，
+      //       最多 MAX_AGENT_ROUNDS 轮，防止工具互相触发把成本打爆。
+      // ==================================================================
+      const steps: ToolStep[] = [];
+      /** 发给后端的 history：以本轮为起点，逐轮追加 assistant(tool_calls) 与 tool 结果 */
+      const turnHistory: Array<Record<string, unknown>> = [];
+      let finalText = '';
+      let finalMeta: Message['meta'];
 
-      // ==============================================================
-      // 【核心 Agent 闭环逻辑】：如果 AI 决定调用工具
-      // ==============================================================
-      if (data.is_tool_call && data.tool_calls && data.tool_calls.length > 0) {
-        const toolCall = data.tool_calls[0];
-        
-        if (toolCall.function.name === 'web_search' && settings.enableWebSearch) {
-          const args = JSON.parse(toolCall.function.arguments);
-          const searchQuery = args.query;
+      for (let round = 0; round < MAX_AGENT_ROUNDS; round += 1) {
+        const isFirst = round === 0;
 
-          const tempAssistantMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: `🔍 正在调用“全球实时搜索引擎”为您查找 **“${searchQuery}”** 的最新信息...`,
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, tempAssistantMsg]);
+        const res = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            // 后续轮次 message 为空：关键信息在 history 的 tool 消息里，
+            // 后端对此有专门放行（hasToolTurn）
+            message: isFirst ? input || '请分析我上传的内容' : '',
+            history: isFirst ? messages : turnHistory,
+            model: selectedModel,
+            attachments: isFirst
+              ? readyAttachments.map((a) => ({
+                  type: a.type,
+                  base64: a.base64,
+                  text: a.text,
+                  fileName: a.fileName,
+                }))
+              : [],
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
 
-          const searchRes = await fetch('/api/ai/web-search', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: searchQuery }),
-          });
-          const searchData = await searchRes.json();
-
-          const finalRes = await fetch('/api/ai/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: `工具 'web_search' 执行完毕。以下是搜索结果摘要，请基于这个摘要回答用户问题：\n\n${searchData.results}`,
-              history: messages, 
-              model: selectedModel,
-              attachments: [],
-            }),
-          });
-          
-          const finalData = await finalRes.json();
-          const finalAssistantMsg: Message = {
-            id: (Date.now() + 2).toString(),
-            role: 'assistant',
-            content: finalData.reply || '（联网搜索后，AI 未能生成有效回复）',
-            timestamp: new Date(),
-          };
-          setMessages((prev) => {
-            const filtered = prev.filter(m => m.id !== tempAssistantMsg.id);
-            return [...filtered, finalAssistantMsg];
-          });
-          setIsLoading(false);
-          return; // ✅ 显式 return
+        // 上游 / 网关错误必须如实呈现（限流 429、上游 502、鉴权 401 都要说出来）
+        if (!res.ok || data.success === false) {
+          throw new Error(
+            (data.message as string) || (data.error as string) || `聊天网关返回 HTTP ${res.status}`,
+          );
         }
+
+        /* ---------------- 分支 A：模型要调工具 ---------------- */
+        if (data.is_tool_call && Array.isArray(data.tool_calls) && data.tool_calls.length > 0) {
+          type RawToolCall = { id: string; type: string; function: { name: string; arguments: string } };
+          const calls = data.tool_calls as RawToolCall[];
+          turnHistory.push({ role: 'assistant', content: null, tool_calls: calls });
+
+          for (const tc of calls) {
+            const name = String(tc.function?.name ?? '');
+            const label = toolLabel(name);
+            let parsedArgs: Record<string, unknown> = {};
+            try {
+              parsedArgs = JSON.parse(tc.function?.arguments || '{}') as Record<string, unknown>;
+            } catch {
+              /* 参数不是合法 JSON 时按空对象处理，让工具自己报错 */
+            }
+
+            // 尊重用户在设置面板里的开关
+            if (name === 'web_search' && !settings.enableWebSearch) {
+              const note = '已在设置中关闭联网搜索，跳过';
+              steps.push({ name, label, ok: false, note });
+              turnHistory.push({
+                role: 'tool',
+                tool_call_id: tc.id,
+                name,
+                content: JSON.stringify({ ok: false, error: note }),
+              });
+              continue;
+            }
+
+            setLiveStep(`正在${label}…`);
+            const outcome = await runTool(name, parsedArgs);
+            steps.push({ name, label, ok: outcome.ok, note: outcome.note });
+            turnHistory.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              name,
+              content: JSON.stringify(outcome.payload),
+            });
+          }
+
+          setLiveStep('');
+          continue; // 带着工具结果再问一次模型
+        }
+
+        /* ---------------- 分支 B：最终回答 ---------------- */
+        finalText = String(data.reply ?? '');
+        finalMeta = {
+          modelUsed: data.model_used as string | undefined,
+          usage: data.usage as Record<string, unknown> | undefined,
+        };
+        break;
       }
 
-      // 普通回复
+      setLiveStep('');
+      if (!finalText) {
+        finalText =
+          steps.length > 0
+            ? '（工具已执行完毕，但模型未给出最终答复。请再问一次，或换个说法。）'
+            : '（AI 返回了空内容，请重试）';
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.reply ?? '抱歉，暂时无法回答。',
+        content: finalText,
         timestamp: new Date(),
+        meta: finalMeta,
+        steps: steps.length > 0 ? steps : undefined,
       };
       setMessages((prev) => [...prev, assistantMessage]);
       return; // ✅ 显式 return
 
     } catch (error) {
+      // ==================================================================
+      // 【关键修复】不再用随机营销话术冒充 AI 回答。
+      // 失败就是失败：把真实原因显示出来，并告知用户可以改走 Harness 主梁。
+      // ==================================================================
+      const reason = error instanceof Error ? error.message : '未知错误';
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)] ?? '抱歉，出现了一些问题，请稍后重试。',
+        content:
+          `⚠️ 暂时无法连接 AI 服务\n\n原因：${reason}\n\n` +
+          `（这不是 AI 的回答，而是系统如实报告的故障。请稍后重试；` +
+          `若是限流，稍等 1 分钟即可。高精尖任务可改走 Harness 主梁。）`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
       return; // ✅ Catch 中显式 return，消除剩余黄色警告
     } finally {
       setIsLoading(false);
+      setLiveStep('');
     }
   };
 
@@ -481,6 +692,21 @@ export default function FloatingChat() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* ============================================================
+                Harness 主梁入口 —— 打开独立跳窗工作台
+                工程图纸 / 复杂代码这类分钟级任务不适合塞在这个小浮窗里：
+                用户需要一边看执行轨迹一边继续逛店，所以开新窗口。
+                ============================================================ */}
+            <button
+              onClick={() => window.open('/harness', 'coupiya-harness', 'width=1280,height=880,noopener,noreferrer')}
+              title={harnessReady ? '打开 Harness 主梁工作台（高精尖任务）' : 'Harness 主梁未连接，点击查看部署指引'}
+              className="relative p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
+            >
+              <ServerStackIcon className="w-4 h-4" />
+              <span
+                className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${harnessReady ? 'bg-emerald-300' : 'bg-amber-300'}`}
+              />
+            </button>
             <button onClick={toggleMinimize} className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white">
               {isMinimized ? <ArrowUpTrayIcon className="w-4 h-4" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
             </button>
@@ -517,6 +743,21 @@ export default function FloatingChat() {
                         : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-tl-sm shadow-md'
                     }`}>
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+
+                      {/* Agent 执行留痕：让用户看见"它确实去查了/去做了"，而不是只有一段话 */}
+                      {message.steps && message.steps.length > 0 && (
+                        <div className="mt-2 space-y-1 border-t border-black/10 dark:border-white/15 pt-2">
+                          {message.steps.map((s, i) => (
+                            <div key={`${s.name}-${i}`} className="flex items-start gap-1.5 text-[11px] leading-snug opacity-85">
+                              <span className={s.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                                {s.ok ? '●' : '○'}
+                              </span>
+                              <span className="font-medium flex-shrink-0">{s.label}</span>
+                              <span className="opacity-75 break-all">{s.note}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mt-2 space-y-1 border-t border-white/20 pt-2">
                           {message.attachments.map((att, i) => (
@@ -534,17 +775,31 @@ export default function FloatingChat() {
                           ))}
                         </div>
                       )}
-                      <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
+                      <p className="text-xs opacity-70 mt-1 flex items-center gap-2 flex-wrap">
+                        <span>{message.timestamp.toLocaleTimeString()}</span>
+                        {/* 真实来源标注：只有 AI 真回了才有 meta，失败消息这里为空 ——
+                            用户一眼就能分辨"这是 AI 说的"还是"系统报的故障"。 */}
+                        {message.meta?.modelUsed && (
+                          <span className="opacity-80 font-mono">{message.meta.modelUsed}</span>
+                        )}
+                        {message.meta?.usage && typeof message.meta.usage === 'object' && 'total_tokens' in (message.meta.usage as Record<string, unknown>) && (
+                          <span className="opacity-70 font-mono">
+                            {String((message.meta.usage as Record<string, unknown>).total_tokens)} tokens
+                          </span>
+                        )}
+                      </p>
                     </div>
                   </div>
                 ))}
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="bg-white dark:bg-gray-700 rounded-2xl px-4 py-3 rounded-tl-sm shadow-md">
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
                         <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce"></span>
                         <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
                         <span className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                        {/* 有工具在执行时显示具体动作 —— 比单纯转圈更能建立信任 */}
+                        {liveStep && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">{liveStep}</span>}
                       </div>
                     </div>
                   </div>
@@ -618,11 +873,24 @@ export default function FloatingChat() {
                   <select
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
-                    className="text-xs bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-none"
+                    title="执行模型（清单来自服务端注册表）"
+                    className="text-xs bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-none max-w-[104px]"
                   >
-                    <option>DeepSeek-R1</option>
-                    <option>DeepSeek-V3</option>
+                    {models.length === 0 && <option value="">加载模型…</option>}
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
                   </select>
+                  {/* Harness 深度任务：小浮窗放不下的分钟级任务走这里 */}
+                  <button
+                    onClick={() => window.open('/harness', 'coupiya-harness', 'width=1280,height=880,noopener,noreferrer')}
+                    title="高精尖 / 工程图纸 / 复杂代码 → 打开 Harness 主梁工作台"
+                    className="p-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 rounded-lg hover:text-indigo-500 transition-colors"
+                  >
+                    <BoltIcon className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={handleSend}
                     disabled={(!input.trim() && !attachments.some(a => !a.uploading && !a.error)) || isLoading}
@@ -686,6 +954,14 @@ export default function FloatingChat() {
           </>
         )}
       </div>
+
+      {/* 刷脸登录弹窗 —— 由 open_face_login 工具或用户点击触发。
+          放在浮窗根节点下（而非内容区内），最小化时也能正常弹出。 */}
+      <FaceAuthModal
+        open={faceOpen}
+        onClose={() => setFaceOpen(false)}
+        onSuccess={() => setFaceOpen(false)}
+      />
     </div>
   );
 }

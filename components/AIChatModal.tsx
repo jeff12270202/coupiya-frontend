@@ -44,6 +44,22 @@ const MOCK_RESPONSES = [
   '瓷韵·灵境祝您购物愉快！有任何问题请随时告诉我。',
 ];
 
+/**
+ * 模型清单（模块级常量，避免每次渲染重新构造）。
+ * 与 lib/ai-models.ts 的注册表 id 严格一致。
+ *
+ * 旧代码在这里硬编码 DeepSeek-R1 / DeepSeek-V3，而后端把两者都映射到
+ * 同一个 deepseek-r1 —— 用户以为自己换了模型，其实什么都没变。
+ * 旧模型名本身也已被官方停用（deepseek-chat / deepseek-reasoner 静默回落到
+ * deepseek-flash），所以默认改为 V4 Pro，旧名保留为"兼容"选项以不打断老会话。
+ */
+const MODEL_OPTIONS = [
+  { id: 'DeepSeek-V4-Pro', label: 'DeepSeek V4 Pro' },
+  { id: 'DeepSeek-V4-Flash', label: 'DeepSeek V4 Flash' },
+  { id: 'GPT-6-Compat', label: 'GPT-6 兼容' },
+  { id: 'DeepSeek-R1', label: 'R1（旧名）' },
+] as const;
+
 const IMAGE_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp';
 const DOC_ACCEPT = '.pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain';
 
@@ -61,7 +77,8 @@ export default function AIChatModal({ onClose }: { onClose: () => void }) {
     },
   ]);
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState('DeepSeek-R1');
+  /** 默认 V4 Pro（旧默认 'DeepSeek-R1' 已随上游停用而失去意义） */
+  const [selectedModel, setSelectedModel] = useState('DeepSeek-V4-Pro');
   const [isLoading, setIsLoading] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -510,8 +527,11 @@ export default function AIChatModal({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="text-xs bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg px-2 py-1.5 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-rose-300 dark:focus:border-rose-500"
               >
-                <option>DeepSeek-R1</option>
-                <option>DeepSeek-V3</option>
+                {MODEL_OPTIONS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
               </select>
               
               <button 

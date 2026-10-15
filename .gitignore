@@ -1,4 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+﻿# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
@@ -39,4 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-"app/api/ai/publish-vod-movie/route.ts" 
+# ===== 编辑器与本地机器配置（含数据库口令，绝不入库）=====
+.vscode/settings.json
+
+# ===== 误产生的垃圾文件（PowerShell 重定向/命令拼写事故）=====
+$null
+Get-ChildItem
+utputFormat
+_patch_utils.js
+frontend-sync.zip
+
+# ===== Prisma =====
+/prisma/generated

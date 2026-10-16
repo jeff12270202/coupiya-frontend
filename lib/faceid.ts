@@ -37,10 +37,12 @@ const CFG = {
   secretKey: process.env.FACEID_SECRET_KEY || process.env.SECRET_KEY || '',
   region: process.env.FACEID_REGION || 'ap-guangzhou',
   /**
-   * 控制台「自助接入」中已审核通过的业务流程 ID（本账号控制台显示为 1）。
-   * DetectAuth 必填，故此处给出默认值，避免漏配环境变量导致直接不可用。
+   * 控制台「自助接入」中已审核通过的业务流程 ID。
+   * 当前值 2 =「增强版人脸核身（权威库）- 悬浮H5」，实测裸调 DetectAuth 即成功
+   * （不需要 ImageBase64、不需要 IdCard/Name —— 姓名与身份证由腾讯 H5 页自行采集）。
+   * 旧的 1 属于「自传照片比对」模式，裸调会报 InvalidParameter，已弃用。
    */
-  ruleId: (process.env.FACEID_RULE_ID || '1').trim(),
+  ruleId: (process.env.FACEID_RULE_ID || '2').trim(),
   /** 核身完成后的回跳地址；留空则由腾讯云使用其默认页面 */
   redirectUrl: (process.env.FACEID_REDIRECT_URL || '').trim(),
 };

@@ -4,14 +4,19 @@
  * FaceAuthModal —— 刷脸注册弹窗（注册模式 v2）
  *
  * 规则（用户澄清版 v2）：
- *   - 人脸识别只用于【首次注册】（腾讯云基础版人脸核身）；
+ *   - 人脸识别只用于【首次注册】（腾讯云增强版人脸核身 · 权威库）；
  *   - 注册完成后必须【设置强密码】（登录账号 + 密码）；
  *   - 以后登录直接用 账号+密码（/login），不再需要人脸识别。
  *
  * 步骤：
- *   intro（说明）→ verifying（等待刷脸，轮询）→ 注册成功但未设密码 →
- *   setpassword（补设账号+强密码，调 /api/auth/password/set）→ 完成回调。
- *   已注册人脸（服务端 status:'exists'）→ 提示改用账号密码登录（/login）。
+ *   intro（说明）→ verifying（展示二维码，手机微信扫码 + 轮询结果）→
+ *   注册成功但未设密码 → setpassword（补设账号+强密码，调 /api/auth/password/set）
+ *   → 完成回调。已注册人脸（服务端 status:'exists'）→ 提示改用账号密码登录（/login）。
+ *
+ * 为什么是二维码而不是弹窗：
+ *   BizToken 对应的核身页是【微信H5】，必须在手机微信里打开；
+ *   在电脑浏览器直接打开腾讯会提示「请在微信中打开」。所以 PC 端只展示二维码，
+ *   由手机扫码完成核身，PC 端轮询拿结果（结果判定始终在服务端）。
  *
  * 后端契约：
  *   POST /api/auth/face/start → { ticket, verifyUrl }
@@ -21,6 +26,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { QRCodeSVG } from 'qrcode.react';
 import type { AuthUser } from '@/hooks/useAuth';
 
 interface FaceAuthModalProps {
@@ -31,12 +37,29 @@ interface FaceAuthModalProps {
 
 type Step = 'intro' | 'verifying' | 'exists' | 'setpassword' | 'error';
 
+/** 轮询间隔：2 秒足够及时，又不会把腾讯云接口打爆 */
 const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 180_000;
+/** 轮询上限 5 分钟（BizToken 本身有效期 7200 秒，5 分钟对用户足够） */
+const POLL_TIMEOUT_MS = 300_000;
+
+function formatClock(totalSeconds: number): string {
+  const s = Math.max(0, totalSeconds);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
 
 export default function FaceAuthModal({ open, onClose, onSuccess }: FaceAuthModalProps) {
   const [step, setStep] = useState<Step>('intro');
   const [message, setMessage] = useState('');
+
+  /** 腾讯云返回的核身页地址 —— 在 PC 上渲染成二维码，供手机微信扫码 */
+  const [verifyUrl, setVerifyUrl] = useState('');
+  /** 轮询截止时间戳与剩余秒数（用于倒计时展示） */
+  const [deadline, setDeadline] = useState(0);
+  const [remaining, setRemaining] = useState(0);
+  /** 当前是否为移动端：是则直接给按钮跳转，不再显示二维码 */
+  const [isMobile, setIsMobile] = useState(false);
 
   // 密码表单
   const [username, setUsername] = useState('');
@@ -58,6 +81,9 @@ export default function FaceAuthModal({ open, onClose, onSuccess }: FaceAuthModa
     clearPoll();
     setStep('intro');
     setMessage('');
+    setVerifyUrl('');
+    setDeadline(0);
+    setRemaining(0);
     setUsername('');
     setPassword('');
     setConfirm('');
@@ -81,6 +107,24 @@ export default function FaceAuthModal({ open, onClose, onSuccess }: FaceAuthModa
       clearPoll();
     };
   }, [open, close, clearPoll]);
+
+  /* ---- 移动端判定（在 effect 里做，避免 SSR 期间访问 navigator） ---- */
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return;
+    setIsMobile(/Android|iPhone|iPad|iPod|Mobile|MicroMessenger/i.test(navigator.userAgent));
+  }, []);
+
+  /* ---- 倒计时 ---- */
+  useEffect(() => {
+    if (!deadline) {
+      setRemaining(0);
+      return;
+    }
+    const tick = () => setRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [deadline]);
 
   /* ---- 密码本地校验（与后端规则一致） ---- */
   const clientValidate = useCallback((): string => {
@@ -156,9 +200,11 @@ export default function FaceAuthModal({ open, onClose, onSuccess }: FaceAuthModa
     [clearPoll, close, onSuccess],
   );
 
-  /* ---- 发起刷脸 ---- */
+  /* ---- 发起刷脸：取回腾讯核身页地址，在 PC 上渲染为二维码 ---- */
   const startFaceVerify = useCallback(async () => {
     setMessage('');
+    setVerifyUrl('');
+    setDeadline(0);
     setStep('verifying');
     try {
       const res = await fetch('/api/auth/face/start', {
@@ -169,8 +215,10 @@ export default function FaceAuthModal({ open, onClose, onSuccess }: FaceAuthModa
       const data = (await res.json().catch(() => ({}))) as { verifyUrl?: string; ticket?: string; error?: string };
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       if (!data?.verifyUrl || !data?.ticket) throw new Error('后端未返回人脸核身链接，请联系管理员');
-      const win = window.open(data.verifyUrl, '_blank', 'noopener,noreferrer');
-      if (!win) setMessage('浏览器拦截了弹窗，请允许本站弹出窗口后点击「重新发起刷脸」');
+      // 不再 window.open：微信H5 核身页必须在手机微信里打开，
+      // 在电脑浏览器直接打开是无效的（腾讯会提示请在微信中打开）。
+      setVerifyUrl(data.verifyUrl);
+      setDeadline(Date.now() + POLL_TIMEOUT_MS);
       startPolling(data.ticket as string);
     } catch (err) {
       setStep('error');
@@ -236,11 +284,15 @@ export default function FaceAuthModal({ open, onClose, onSuccess }: FaceAuthModa
             <div className="text-5xl mb-4">🪪</div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">刷脸注册，然后设置强密码</h3>
             <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              本站支持<b>人脸注册 / 登录</b>（腾讯云基础人脸核身），
+              本站支持<b>人脸注册 / 登录</b>（腾讯云增强版人脸核身 · 权威库），
               <br />
               无需邮箱密码、<b>无需腾讯云账号</b>——您只属于 Coupiya。
               <br />
-              刷脸通过后请立即设置<b>登录账号 + 强密码</b>，
+              点击下方按钮后，请用<b>手机微信扫描二维码</b>，
+              <br />
+              在手机上填写<b>姓名与身份证号</b>并完成刷脸；
+              <br />
+              通过后请立即设置<b>登录账号 + 强密码</b>，
               <br />
               今后登录请使用 <Link href="/login" className="text-purple-600 font-semibold hover:underline" onClick={close}>账号 + 密码（前往登录页）</Link>。
             </p>
@@ -258,21 +310,68 @@ export default function FaceAuthModal({ open, onClose, onSuccess }: FaceAuthModa
         )}
 
         {step === 'verifying' && (
-          <div className="text-center py-4">
-            <div className="w-14 h-14 mx-auto mb-4 border-4 border-purple-200 border-t-purple-500 rounded-full animate-spin" />
-            <h3 className="text-lg font-bold text-gray-800 mb-2">正在等待您完成刷脸…</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              若已弹出核身窗口，请在窗口中完成动作；
-              <br />
-              若窗口未弹出：{message || '请检查浏览器弹窗设置'}
-            </p>
-            <button
-              type="button"
-              onClick={startFaceVerify}
-              className="mt-5 px-5 py-2.5 rounded-lg border border-purple-300 text-purple-600 hover:bg-purple-50 transition-colors"
-            >
-              重新发起刷脸
-            </button>
+          <div className="text-center">
+            {!verifyUrl ? (
+              <div className="py-6">
+                <div className="w-14 h-14 mx-auto mb-4 border-4 border-purple-200 border-t-purple-500 rounded-full animate-spin" />
+                <h3 className="text-lg font-bold text-gray-800 mb-2">正在生成核身二维码…</h3>
+                <p className="text-sm text-gray-500">请稍候</p>
+              </div>
+            ) : isMobile ? (
+              <div className="py-2">
+                <div className="text-4xl mb-3">📱</div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">请点击下方按钮开始刷脸</h3>
+                <p className="text-sm text-gray-500 mb-5 leading-relaxed">
+                  将打开腾讯云核身页，请填写<b>姓名与身份证号</b>并完成刷脸。
+                </p>
+                <a
+                  href={verifyUrl}
+                  className="block w-full py-3.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                >
+                  开始刷脸
+                </a>
+              </div>
+            ) : (
+              <div className="py-1">
+                <h3 className="text-lg font-bold text-gray-800 mb-1">请用手机微信扫码</h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  扫码后在手机上填写<b>姓名与身份证号</b>，并完成刷脸
+                </p>
+                <div className="inline-block p-3 bg-white border-2 border-gray-100 rounded-2xl shadow-sm">
+                  <QRCodeSVG value={verifyUrl} size={190} level="M" />
+                </div>
+                <p className="mt-4 text-sm text-gray-600">
+                  等待中… 剩余 <span className="font-semibold text-purple-600">{formatClock(remaining)}</span>
+                </p>
+                <p className="mt-1 text-xs text-gray-400">完成后本窗口会自动继续，无需手动刷新</p>
+              </div>
+            )}
+
+            {message && <p className="mt-4 text-xs text-amber-600 break-words">{message}</p>}
+
+            <div className="mt-5 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={startFaceVerify}
+                className="w-full py-2.5 rounded-lg border border-purple-300 text-purple-600 hover:bg-purple-50 transition-colors text-sm font-medium"
+              >
+                重新生成二维码
+              </button>
+              {verifyUrl && !isMobile && (
+                <details className="text-left">
+                  <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 text-center">
+                    手机不在身边？复制链接到手机打开
+                  </summary>
+                  <textarea
+                    readOnly
+                    value={verifyUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    rows={2}
+                    className="mt-2 w-full text-[11px] leading-tight text-gray-500 border border-gray-200 rounded-lg p-2 break-all resize-none"
+                  />
+                </details>
+              )}
+            </div>
           </div>
         )}
 

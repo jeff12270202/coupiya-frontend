@@ -277,7 +277,7 @@ export async function POST(req: NextRequest) {
             nickname: u?.nickname ?? null,
             username: u?.username ?? null,
             balance: u?.balance ?? 0,
-            recentTransactions: txns.map((t) => ({
+            recentTransactions: txns.map((t: any) => ({
               type: t.type,
               amount: t.amount,
               balanceAfter: t.balanceAfter,

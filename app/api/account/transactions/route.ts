@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({
       success: true,
-      items: items.map((t) => ({
+      items: items.map((t: any) => ({
         id: t.id,
         type: t.type,
         amount: t.amount,

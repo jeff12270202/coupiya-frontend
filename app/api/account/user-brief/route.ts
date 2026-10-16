@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({
       success: true,
-      users: users.map((u) => ({
+      users: users.map((u: any) => ({
         id: u.id,
         nickname: u.nickname || `创作者 ${u.id}`,
         avatar: u.avatar ?? undefined,

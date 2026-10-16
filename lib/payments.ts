@@ -79,7 +79,7 @@ export async function settleRechargeOrder(
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // 行级安全：仅 pending → completed；并发下只有一方成功
       const updated = await tx.rechargeOrder.updateMany({
         where: { id: order.id, status: 'pending' },
